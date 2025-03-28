@@ -66,11 +66,14 @@ export const getColor = (index: number): string => {
 };
 
 export const formatDateTime = (date: Date): string => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(
-    date.getMinutes()
-  ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(date.getDate()).padStart(2, "0")} ${String(
+    date.getHours()
+  ).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(
+    date.getSeconds()
+  ).padStart(2, "0")}`;
 };
 
 export const convertExcelDataToChartData = (
@@ -78,24 +81,64 @@ export const convertExcelDataToChartData = (
   customMarkLines: number[] = [],
   maxPoints: number = 1000
 ) => {
+  const units = excelData[1].map(String);
   const headers = excelData[0].map(String);
+  const unitMap: Record<string, string> = {};
+  headers.forEach((header, index) => {
+    unitMap[header] = units[index];
+  });
   const dataRows = excelData.slice(2);
   const xAxisData = dataRows.map((row) => new Date(row[1]).getTime());
   const midnightLines = getMidnightLines(xAxisData);
 
+  console.log('unitMap:', unitMap);
   return {
-    series: headers.slice(2).map((header, colIndex) => ({
-      name: header,
-      type: "line" as const,
-      data: downsampleData(dataRows, xAxisData, colIndex, maxPoints),
-      lineStyle: { color: getColor(colIndex), width: 0.7 },
-      itemStyle: { color: getColor(colIndex) },
-      symbol: "none" as const,
-      triggerLineEvent: true,
-      markLine: colIndex === 0 ? getMarkLineData(midnightLines, customMarkLines) : undefined,
-    })),
+    series: headers.slice(2).map((header, colIndex) => {
+      const unit = unitMap[header];
+      const isPowerUnit = unit !== '℃';
+
+      return {
+        name: header,
+        type: "line" as const,
+        data: downsampleData(dataRows, xAxisData, colIndex, maxPoints),
+        lineStyle: { color: getColor(colIndex), width: 0.7 },
+        itemStyle: { color: getColor(colIndex) },
+        symbol: "none" as const,
+        triggerLineEvent: true,
+        markLine: colIndex === 0 ? getMarkLineData(midnightLines, customMarkLines) : undefined,
+        yAxisIndex: isPowerUnit ? 1 : 0,
+      };
+    }),
+    unitMap, // unitMap을 반환값에 추가
   };
 };
+
+export const getMarkLineData = (
+  midnightLines: number[],
+  customMarkLines: number[]
+) => ({
+  silent: true,
+  symbol: ["none"],
+  lineStyle: { type: "dashed", color: "#999" },
+  data: [
+    ...midnightLines.map((time) => ({
+      xAxis: time,
+      label: {
+        show: true,
+        formatter: () => formatDateTime(new Date(time)),
+      },
+    })),
+    ...customMarkLines.map((time) => ({
+      xAxis: time,
+      lineStyle: { type: "dashed", color: "#FF5733" },
+      symbol: ["none"],
+      label: {
+        show: true,
+        formatter: () => formatDateTime(new Date(time)),
+      },
+    })),
+  ],
+});
 
 const downsampleData = (
   dataRows: any[],
@@ -116,20 +159,3 @@ const downsampleData = (
   }
 };
 
-export const getMarkLineData = (midnightLines: number[], customMarkLines: number[]) => ({
-  silent: true,
-  symbol: ["none"],
-  lineStyle: { type: "dashed", color: "#999" },
-  data: [
-    ...midnightLines.map((time) => ({
-      xAxis: time,
-      label: { show: true, formatter: () => formatDateTime(new Date(time)) },
-    })),
-    ...customMarkLines.map((time) => ({
-      xAxis: time,
-      lineStyle: { type: "dashed", color: "#FF5733" },
-      symbol: ["none"],
-      label: { show: true, formatter: () => formatDateTime(new Date(time)) },
-    })),
-  ],
-});

@@ -34,7 +34,7 @@
 {:else if chunkData}
   <div>
     <h2>Excel Data Graph</h2>
-    <p>{JSON.stringify(vendor, null, 2)}</p>
+    <!-- <p>{JSON.stringify(vendor, null, 2)}</p> -->
     <EChartComponent data={chunkData}/>
   </div>
 {/if}
