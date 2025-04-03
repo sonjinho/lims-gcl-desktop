@@ -1,13 +1,16 @@
 <script>
   import {
     convertExcelDataToChartData,
-    getMidnightLines,
     getMarkLineData,
-  } from "$lib/utils/chart.util.js";
+    getMidnightLines,
+  } from "$lib/util/chart.util.js";
   import * as echarts from "echarts";
   import { onDestroy, onMount } from "svelte";
+  import ExportData from "./ExportData.svelte";
 
   export let data;
+  const minDate = new Date(data[3][1]);
+  const maxDate = new Date(data[data.length - 1][1]);
   let chartContainer;
   let chartInstance;
   let customMarkLines = [];
@@ -61,7 +64,7 @@
 
     const legendData = series.map((s, index) => ({
       name: s.name,
-      selected: index < 5,
+      selected: index < 7,
     }));
 
     const option = {
@@ -107,7 +110,7 @@
       },
       xAxis: {
         type: "time",
-        name: "Date Time",
+        // name: "Date Time",
         axisLabel: {
           formatter: (value) => {
             const date = new Date(value);
@@ -179,13 +182,6 @@
     }
   });
 </script>
-<div class="container bg-background text-foreground">
-  <div class="grid grid-cols-3 gap-6">
-    <p>Block A</p>
-    <p>Block B</p>
-    <p>Block C</p>
-  </div>
-  <input type="text" />
-</div>
 
-<div bind:this={chartContainer} style="width: 100%; height: 800px;"></div>
+<ExportData analyzeData={data} />
+<div bind:this={chartContainer} class="h-screen w-full"></div>

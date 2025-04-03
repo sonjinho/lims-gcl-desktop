@@ -4,6 +4,41 @@ import * as XLSX from "xlsx";
 
 export type ExcelData = (string | number | null | Date)[][]; // Date 타입 추가
 
+//Elapsed Time	Date Time	Room DB	Room RH	Volt	Current	Power	Frequency	Integ. Power	TC_1	TC_2	TC_3	TC_4	TC_5	TC_6	TC_7	TC_8	TC_9	TC_10	TC_11	TC_12	TC_13	TC_14	TC_15	TC_16	TC_17	TC_18	TC_19	TC_20	Power Factor
+// make enum from 0 ~ N
+export enum ExcelColumn {
+  ElapsedTime = 0,
+  DateTime,
+  RoomDB,
+  RoomRH,
+  Volt,
+  Current,
+  Power,
+  Frequency,
+  IntegPower,
+  TC_1,
+  TC_2,
+  TC_3,
+  TC_4,
+  TC_5,
+  TC_6,
+  TC_7,
+  TC_8,
+  TC_9,
+  TC_10,
+  TC_11,
+  TC_12,
+  TC_13,
+  TC_14,
+  TC_15,
+  TC_16,
+  TC_17,
+  TC_18,
+  TC_19,
+  TC_20,
+  PowerFactor,
+}
+
 export default async function openExcelFile(): Promise<ExcelData | null> {
   try {
     const selected = await open({
@@ -62,7 +97,7 @@ export default async function openExcelFile(): Promise<ExcelData | null> {
       })
     );
     let end = new Date();
-    console.log(optimizedData)
+    // console.log(optimizedData)
     console.log("Duration: " + (end.getTime() - start.getTime()) + "ms");
 
     return optimizedData;
@@ -70,4 +105,12 @@ export default async function openExcelFile(): Promise<ExcelData | null> {
     console.error("Read Excel File Error:", error);
     return null;
   }
+}
+
+
+export function exportToExcel(data: any, fileName = "export.xlsx") {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  XLSX.writeFile(workbook, fileName);
 }

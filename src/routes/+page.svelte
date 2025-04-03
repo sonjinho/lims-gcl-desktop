@@ -1,6 +1,7 @@
 <script>
   import ExcelGraph from "$lib/components/ExcelGraph.svelte";
-  import openExcelFile from "$lib/utils/excel.utils";
+  import { Button } from "$lib/components/ui/button";
+  import openExcelFile from "$lib/util/excel.utils";
 
   let result = $state([]);
   const handleOpenFile = async () => {
@@ -9,8 +10,10 @@
 </script>
 
 <main class="container">
-  <button onclick={handleOpenFile}>Select Excel File</button>
+  <Button onclick={handleOpenFile} size="sm">Select Excel File</Button>
   {#if result.length > 0}
     <ExcelGraph {result} />
+  {:else}
+    <p>No Data</p>
   {/if}
 </main>
