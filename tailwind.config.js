@@ -1,96 +1,65 @@
-import { fontFamily } from "tailwindcss/defaultTheme";
-import tailwindcssAnimate from "tailwindcss-animate";
-
-/** @type {import('tailwindcss').Config} */
 const config = {
-	darkMode: ["class"],
-	content: ["./src/**/*.{html,js,svelte,ts}"],
-	safelist: ["dark"],
-	theme: {
-		container: {
-			center: true,
-			padding: "2rem",
-			screens: {
-				"2xl": "1400px"
-			}
-		},
-		extend: {
-			colors: {
-				border: "hsl(var(--border) / <alpha-value>)",
-				input: "hsl(var(--input) / <alpha-value>)",
-				ring: "hsl(var(--ring) / <alpha-value>)",
-				background: "hsl(var(--background) / <alpha-value>)",
-				foreground: "hsl(var(--foreground) / <alpha-value>)",
-				primary: {
-					DEFAULT: "hsl(var(--primary) / <alpha-value>)",
-					foreground: "hsl(var(--primary-foreground) / <alpha-value>)"
-				},
-				secondary: {
-					DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
-					foreground: "hsl(var(--secondary-foreground) / <alpha-value>)"
-				},
-				destructive: {
-					DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
-					foreground: "hsl(var(--destructive-foreground) / <alpha-value>)"
-				},
-				muted: {
-					DEFAULT: "hsl(var(--muted) / <alpha-value>)",
-					foreground: "hsl(var(--muted-foreground) / <alpha-value>)"
-				},
-				accent: {
-					DEFAULT: "hsl(var(--accent) / <alpha-value>)",
-					foreground: "hsl(var(--accent-foreground) / <alpha-value>)"
-				},
-				popover: {
-					DEFAULT: "hsl(var(--popover) / <alpha-value>)",
-					foreground: "hsl(var(--popover-foreground) / <alpha-value>)"
-				},
-				card: {
-					DEFAULT: "hsl(var(--card) / <alpha-value>)",
-					foreground: "hsl(var(--card-foreground) / <alpha-value>)"
-				},
-				sidebar: {
-					DEFAULT: "hsl(var(--sidebar-background))",
-					foreground: "hsl(var(--sidebar-foreground))",
-					primary: "hsl(var(--sidebar-primary))",
-					"primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-					accent: "hsl(var(--sidebar-accent))",
-					"accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-					border: "hsl(var(--sidebar-border))",
-					ring: "hsl(var(--sidebar-ring))",
-        		},
-			},
-			borderRadius: {
-				xl: "calc(var(--radius) + 4px)",
-				lg: "var(--radius)",
-				md: "calc(var(--radius) - 2px)",
-				sm: "calc(var(--radius) - 4px)"
-			},
-			fontFamily: {
-				sans: [...fontFamily.sans]
-			},
-			keyframes: {
-				"accordion-down": {
-					from: { height: "0" },
-					to: { height: "var(--bits-accordion-content-height)" },
-				},
-				"accordion-up": {
-					from: { height: "var(--bits-accordion-content-height)" },
-					to: { height: "0" },
-				},
-				"caret-blink": {
-					"0%,70%,100%": { opacity: "1" },
-					"20%,50%": { opacity: "0" },
-				},
-			},
-			animation: {
-        		"accordion-down": "accordion-down 0.2s ease-out",
-        		"accordion-up": "accordion-up 0.2s ease-out",
-       			"caret-blink": "caret-blink 1.25s ease-out infinite",
-      		},
-		},
-	},
-	plugins: [tailwindcssAnimate],
+  content: [
+    "./src/**/*.{html,js,svelte,ts}",
+    "./node_modules/flowbite-svelte/**/*.{html,js,svelte,ts}",
+  ],
+
+  plugins: [require("flowbite/plugin")],
+
+  darkMode: "class",
+
+  theme: {
+    extend: {
+      fontSize: {
+        base: "14px", // 기본 폰트 크기를 작게 조정
+      },
+      spacing: {
+        xs: "2px",
+        sm: "4px",
+        md: "6px",
+      },
+      colors: {
+        background: {
+          dark: "#121212", // 다크 배경
+          panel: "#1E1E1E", // 패널 배경
+        },
+        text: "#E0E0E0", // 기본 텍스트 색상 (연한 회색)
+        border: "#2A2A2A", // 보더 색상 (연한 블랙)
+        primary: {
+          50: "#E3F2FD",
+          100: "#BBDEFB",
+          200: "#90CAF9",
+          300: "#64B5F6",
+          400: "#42A5F5",
+          500: "#2196F3", // 네온 블루 (메인 포인트)
+          600: "#1E88E5",
+          700: "#1976D2",
+          800: "#1565C0",
+          900: "#0D47A1",
+        },
+        accent: {
+          50: "#E8F5E9",
+          100: "#C8E6C9",
+          200: "#A5D6A7",
+          300: "#81C784",
+          400: "#66BB6A",
+          500: "#4CAF50", // 네온 민트 (서브 포인트)
+          600: "#43A047",
+          700: "#388E3C",
+          800: "#2E7D32",
+          900: "#1B5E20",
+        },
+      },
+      boxShadow: {
+        'md': '0 4px 6px rgba(0, 0, 0, 0.1)',
+        'lg': '0 6px 10px rgba(0, 0, 0, 0.15)',
+      },
+      borderRadius: {
+        'md': '8px',
+        'lg': '12px',
+      },
+    },
+  },
 };
 
-export default config;
+module.exports = config;

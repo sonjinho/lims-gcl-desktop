@@ -1,7 +1,8 @@
 <script>
   import EChartComponent from "./EChartComponent.svelte";
   import DataSetting  from "./DataSetting.svelte";
-  import { Button } from "./ui/button";
+  import { Button } from "flowbite-svelte";
+  import ExcelResultView from "./ExcelResultView.svelte";
 
   export let result;
 
@@ -46,6 +47,8 @@
 {#if !result || result.length === 0}
   <div>No Data to Display</div>
 {:else}
+<ExcelResultView/>
+
   <div>
     <div class="flex justify-end">
       <Button
@@ -62,14 +65,12 @@
       >
     </div>
 
-    {#if isOpen}
-      <!-- Model 정보 강조 -->
+    <!-- {#if isOpen}
       <div class="mb-4 p-4 bg-blue-100 rounded-md">
         <strong>Model:</strong>
         {sortedData.find((row) => row[0] === "Model")?.[1] ?? "N/A"}
       </div>
 
-      <!-- 테이블 -->
       <div class="max-h-80 overflow-y-auto border rounded-md p-2">
         <table class="w-full border border-gray-300">
           <thead>
@@ -88,14 +89,14 @@
           </tbody>
         </table>
       </div>
-    {/if}
+    {/if} -->
 
-    {#if chunkData.length > 0}
+    <!-- {#if chunkData.length > 0}
       <DataSetting data ={chunkData}/>
-    {/if}
+    {/if} -->
 
-    {#if chunkData.length > 0}
+    <!-- {#if chunkData.length > 0}
       <EChartComponent data={chunkData} />
-    {/if}
+    {/if} -->
   </div>
 {/if}

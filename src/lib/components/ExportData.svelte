@@ -1,6 +1,5 @@
 <script>
-    import { Label } from "$lib/components/ui/label";
-    import { Input } from "$lib/components/ui/input";
+    import { Label, Input } from "flowbite-svelte";
     import IEC62552_ExportData from "$lib/util/iec.62552.3.util";
 
   export let analyzeData;

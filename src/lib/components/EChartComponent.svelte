@@ -15,44 +15,35 @@
   let chartInstance;
   let customMarkLines = [];
   let xAxisData = [];
-  let unitMap = {}; // 단위 맵을 컴포넌트 수준에서 저장
+  let unitMap = {};
+  let isChartLoaded = false;
 
   const handleResize = () => chartInstance?.resize();
 
-  const handleDoubleClick = (event) => {
-    event.event.preventDefault();
-    const pointInPixel = [event.offsetX, event.offsetY];
-    const pointInGrid = chartInstance.convertFromPixel(
-      { seriesIndex: 0 },
-      pointInPixel
-    );
-
-    if (chartInstance.containPixel("grid", pointInPixel)) {
-      const clickedTime = pointInGrid[0];
-      const nearestTime = findNearestValue(clickedTime, xAxisData);
-      customMarkLines.push(nearestTime);
-      updateMarkLines();
+  async function updateChart() {
+    if (!chartContainer) {
+      console.error("Chart container is not ready yet");
+      return;
     }
-  };
 
-  const findNearestValue = (target, values) => {
-    return values.reduce((prev, curr) =>
-      Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
-    );
-  };
-
-  function updateChart() {
     if (!chartInstance) {
       chartInstance = echarts.init(chartContainer);
     }
 
-    const chartData = convertExcelDataToChartData(
-      data,
-      customMarkLines,
-      data.length
-    );
+    // 비동기적으로 데이터 변환 처리
+    const chartData = await new Promise((resolve) => {
+      setTimeout(() => {
+        const result = convertExcelDataToChartData(
+          data,
+          customMarkLines,
+          data.length
+        );
+        resolve(result);
+      }, 0); // 메인 스레드에서 벗어나도록 setTimeout 사용
+    });
+
     const { series } = chartData;
-    unitMap = chartData.unitMap; // convertExcelDataToChartData에서 unitMap 가져오기
+    unitMap = chartData.unitMap;
     xAxisData = data.slice(2).map((row) => {
       const parsedDate = new Date(row[1]);
       if (isNaN(parsedDate.getTime())) {
@@ -71,7 +62,6 @@
       tooltip: {
         trigger: "axis",
         formatter: (params) => {
-          // params는 배열이며, 각 series의 데이터 포함
           const date = new Date(params[0].axisValue);
           const hours = date.getHours() % 12 || 12;
           const ampm = date.getHours() >= 12 ? "PM" : "AM";
@@ -88,7 +78,7 @@
           params.forEach((param) => {
             const seriesName = param.seriesName;
             const value = param.value[1];
-            const unit = unitMap[seriesName] || ""; // 단위 가져오기
+            const unit = unitMap[seriesName] || "";
             tooltipStr += `${param.marker} ${seriesName}: ${value} ${unit}<br/>`;
           });
           return tooltipStr;
@@ -110,7 +100,6 @@
       },
       xAxis: {
         type: "time",
-        // name: "Date Time",
         axisLabel: {
           formatter: (value) => {
             const date = new Date(value);
@@ -153,6 +142,7 @@
     };
 
     chartInstance.setOption(option, true);
+    isChartLoaded = true; // 모든 작업 완료 후 로드 상태 업데이트
   }
 
   function updateMarkLines() {
@@ -166,22 +156,31 @@
     });
   }
 
-  onMount(() => {
-    if (data) {
-      updateChart();
+  onMount(async () => {
+    if (data && chartContainer) {
+      isChartLoaded = false; // 로딩 시작
+      await updateChart(); // 비동기 작업 대기
       window.addEventListener("resize", handleResize);
-      chartInstance.getZr().on("dblclick", handleDoubleClick);
     }
   });
 
   onDestroy(() => {
     window.removeEventListener("resize", handleResize);
     if (chartInstance) {
-      chartInstance.getZr().off("dblclick", handleDoubleClick);
       chartInstance.dispose();
     }
   });
 </script>
 
 <ExportData analyzeData={data} />
-<div bind:this={chartContainer} class="h-screen w-full"></div>
+
+<div class="h-screen w-full relative">
+  <div bind:this={chartContainer} class="h-full w-full"></div>
+  {#if !isChartLoaded}
+    <div
+      class="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75"
+    >
+      <p class="text-lg font-semibold">Loading...</p>
+    </div>
+  {/if}
+</div>
