@@ -9,6 +9,7 @@
   import ExportData from "./ExportData.svelte";
 
   export let data;
+  
   const minDate = new Date(data[3][1]);
   const maxDate = new Date(data[data.length - 1][1]);
   let chartContainer;
@@ -142,6 +143,7 @@
     };
 
     chartInstance.setOption(option, true);
+    
     isChartLoaded = true; // 모든 작업 완료 후 로드 상태 업데이트
   }
 
@@ -174,7 +176,7 @@
 
 <ExportData analyzeData={data} />
 
-<div class="h-screen w-full relative">
+<div class="h-screen w-full relative" style="zoom: 100% !important;">
   <div bind:this={chartContainer} class="h-full w-full"></div>
   {#if !isChartLoaded}
     <div

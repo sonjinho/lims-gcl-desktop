@@ -44,7 +44,7 @@
   let steps = ["Model", "Table Setting", "Chart"];
 </script>
 
-<main class="container p-6">
+<main class=" p-6">
   <!-- <h3 class="text-base font-semibold">{steps[currentStep]}</h3> -->
   <StepIndicator {currentStep} {steps} />
   <div class="flex justify-end m-10">
