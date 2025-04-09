@@ -3,11 +3,12 @@ import { TemperatureIndex } from "$lib/util/iec.62552.3.util";
 import { writable } from "svelte/store";
 
 export class TempVolume {
-  temp;
-  volume;
+  temp = [];
+  volume = 0;
 }
 
 export class AnaylzeConfig {
+  name = '';
   targetAmbient = 32;
   evaluateUnfrozen = TemperatureIndex.FRESH_FOOD;
   evaluateFrozen = TemperatureIndex.FROZEN_3_STAR;

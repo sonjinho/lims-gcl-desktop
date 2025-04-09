@@ -1,5 +1,6 @@
 <script>
   import { selectedStore } from "$lib/store/selectedStore";
+  import { save, SS1Config } from "$lib/util/db.util";
   import { TemperatureIndex } from "$lib/util/iec.62552.3.util";
   import {
     Button,
@@ -17,14 +18,12 @@
 
   let header = data[0] || []; // header가 undefined일 경우 빈 배열로 초기화
 
-  let config; // 깊은 복사 필요 시 별도 처리
-
-  onMount(() => {
-    config = $selectedStore;
-  });
-  function saveSelection() {
-    console.log(config);
-    selectedStore.set({ ...config }); // 새로운 객체로 설정
+  async function saveSelection() {
+    let ss1Config = new SS1Config();
+    ss1Config.name = $selectedStore.name;
+    ss1Config.config = JSON.stringify($selectedStore);
+    console.log(ss1Config);
+    save(ss1Config);
   }
   const unfrozenItems = [
     {
@@ -71,12 +70,13 @@
   let items = header.map((item, index) => ({ value: index, name: item }));
 </script>
 
-<div class="flex justify-end mt-4">
-  <ButtonGroup>
-    <Button on:click={saveSelection}>Save</Button>
-  </ButtonGroup>
-</div>
-{#if config}
+{#if $selectedStore}
+  <div class="mt-4">
+    <ButtonGroup class="w-full">
+      <Input type="text" required bind:value={$selectedStore.name} />
+      <Button on:click={saveSelection}>Save</Button>
+    </ButtonGroup>
+  </div>
   <div class="grid grid-cols-1 gap-6">
     <div>
       <Label class="block text-sm font-medium text-gray-700"
@@ -84,7 +84,7 @@
       >
 
       <Select
-        bind:value={config.targetAmbient}
+        bind:value={$selectedStore.targetAmbient}
         placeholder="Ambient"
         items={[
           { value: 32, name: "32" },
@@ -95,30 +95,33 @@
     <div>
       <Label class="block text-sm font-medium text-gray-700">Time</Label>
       <Select
-        bind:value={config.xAxis}
+        bind:value={$selectedStore.xAxis}
         {items}
         class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring focus:ring-primary-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:ring-primary-600"
       />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700">Power</Label>
-      <Select bind:value={config.power} {items} />
+      <Select bind:value={$selectedStore.power} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700">Ambient</Label>
-      <MultiSelect bind:value={config.ambient} {items} />
+      <MultiSelect bind:value={$selectedStore.ambient} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Evaluate Unfrozen</Label
       >
-      <Select bind:value={config.evaluateUnfrozen} items={unfrozenItems} />
+      <Select
+        bind:value={$selectedStore.evaluateUnfrozen}
+        items={unfrozenItems}
+      />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Evaluate Frozen</Label
       >
-      <Select bind:value={config.evaluateFrozen} items={frozenItems} />
+      <Select bind:value={$selectedStore.evaluateFrozen} items={frozenItems} />
     </div>
   </div>
   <Hr />
@@ -128,57 +131,57 @@
 
     <div>
       <Label class="block text-sm font-medium text-gray-700">Fresh Food</Label>
-      <MultiSelect bind:value={config.freshFood.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.freshFood.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Fresh Food Volume</Label
       >
-      <Input type="number" bind:value={config.freshFood.volume} />
+      <Input type="number" bind:value={$selectedStore.freshFood.volume} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700">Cellar</Label>
-      <MultiSelect bind:value={config.cellar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.cellar.temp} {items} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Cellar Volume</Label
       >
-      <Input type="number" bind:value={config.cellar.volume} />
+      <Input type="number" bind:value={$selectedStore.cellar.volume} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700">Pantry</Label>
-      <MultiSelect bind:value={config.pantry.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.pantry.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Pantry Volume</Label
       >
-      <Input type="number" bind:value={config.pantry.volume} />
+      <Input type="number" bind:value={$selectedStore.pantry.volume} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700">Wine Storage</Label
       >
-      <MultiSelect bind:value={config.wineStorage.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.wineStorage.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Wine Storage Volume</Label
       >
-      <Input type="number" bind:value={config.wineStorage.volume} />
+      <Input type="number" bind:value={$selectedStore.wineStorage.volume} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700">Chill</Label>
-      <MultiSelect bind:value={config.chill.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.chill.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700">Chill Volume</Label
       >
-      <Input type="number" bind:value={config.chill.volume} />
+      <Input type="number" bind:value={$selectedStore.chill.volume} />
     </div>
   </div>
   <Hr />
@@ -189,64 +192,64 @@
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (0 Star)</Label
       >
-      <MultiSelect bind:value={config.frozenZeroStar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.frozenZeroStar.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (0 Star) Volume</Label
       >
-      <Input type="number" bind:value={config.frozenZeroStar.volume} />
+      <Input type="number" bind:value={$selectedStore.frozenZeroStar.volume} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (1 Star)</Label
       >
-      <MultiSelect bind:value={config.frozenOneStar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.frozenOneStar.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (1 Star) Volume</Label
       >
-      <Input type="number" bind:value={config.frozenOneStar.volume} />
+      <Input type="number" bind:value={$selectedStore.frozenOneStar.volume} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (2 Star)</Label
       >
-      <MultiSelect bind:value={config.frozenTwoStar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.frozenTwoStar.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (2 Star) Volume</Label
       >
-      <Input type="number" bind:value={config.frozenTwoStar.volume} />
+      <Input type="number" bind:value={$selectedStore.frozenTwoStar.volume} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (3 Star)</Label
       >
-      <MultiSelect bind:value={config.frozenThreeStar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.frozenThreeStar.temp} {items} />
     </div>
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (3 Star) Volume</Label
       >
-      <Input type="number" bind:value={config.frozenThreeStar.volume} />
+      <Input type="number" bind:value={$selectedStore.frozenThreeStar.volume} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (4 Star)</Label
       >
-      <MultiSelect bind:value={config.frozenFourStar.temp} {items} />
+      <MultiSelect bind:value={$selectedStore.frozenFourStar.temp} {items} />
     </div>
 
     <div>
       <Label class="block text-sm font-medium text-gray-700"
         >Frozen (4 Star) Volume</Label
       >
-      <Input type="number" bind:value={config.frozenFourStar.volume} />
+      <Input type="number" bind:value={$selectedStore.frozenFourStar.volume} />
     </div>
   </div>
 {/if}

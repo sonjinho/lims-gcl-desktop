@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { ExcelData } from "./excel.utils";
 
+const CYCLE_COLOR = "#00A8E8";
 export const COLORS = [
   "rgb(75, 192, 192)",
   "rgb(255, 99, 132)",
@@ -75,44 +76,6 @@ export const formatDateTime = (date: Date): string => {
   ).padStart(2, "0")}`;
 };
 
-/* export const convertExcelDataToChartData = (
-  excelData: ExcelData,
-  customMarkLines: number[] = [],
-  maxPoints: number = 1000
-) => {
-  const units = excelData[1].map(String);
-  const headers = excelData[0].map(String);
-  const unitMap: Record<string, string> = {};
-  headers.forEach((header, index) => {
-    unitMap[header] = units[index];
-  });
-  const dataRows = excelData.slice(2);
-  const xAxisData = dataRows.map((row) => new Date(row[1]).getTime());
-  const midnightLines = getMidnightLines(xAxisData);
-
-  console.log('unitMap:', unitMap);
-  return {
-    series: headers.slice(2).map((header, colIndex) => {
-      const unit = unitMap[header];
-      const isPowerUnit = unit !== '℃';
-
-      return {
-        name: header,
-        type: "line" as const,
-        data: downsampleData(dataRows, xAxisData, colIndex, maxPoints),
-        lineStyle: { color: getColor(colIndex), width: 0.7 },
-        itemStyle: { color: getColor(colIndex) },
-        symbol: "none" as const,
-        triggerLineEvent: true,
-        markLine: colIndex === 0 ? getMarkLineData(midnightLines, customMarkLines) : undefined,
-        yAxisIndex: isPowerUnit ? 1 : 0,
-      };
-    }),
-    unitMap, // unitMap을 반환값에 추가
-  };
-};
- */
-
 export const convertExcelDataToChartData = (
   excelData: ExcelData,
   customMarkLines: number[] = [],
@@ -174,8 +137,8 @@ export const convertExcelDataToChartData = (
     name: "cycle",
     type: "line" as const,
     data: [],
-    lineStye: { color: "#00A8E8" },
-    itemStyle: { color: "#00A8E8" },
+    lineStye: { color: CYCLE_COLOR },
+    itemStyle: { color: CYCLE_COLOR },
     symbol: "none" as const,
     markLine: getCycleDashedData(powerData, xAxisData),
     yAxisIndex: 1,
@@ -240,7 +203,7 @@ export const getCycleDashedData = (
       }
       markLines.push({
         xAxis: timeData[i], // 해당 시점에 markLine 추가
-        lineStyle: { type: "dashed", color: "#FF5733", width: 1 }, // 굵기 조정
+        lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 1 }, // 굵기 조정
         symbol: ["none", "none"],
         symbolSize: [0, 0],
         label: {
@@ -255,7 +218,7 @@ export const getCycleDashedData = (
   return {
     silent: true,
     symbol: ["none"],
-    lineStyle: { type: "dashed", color: "#FF5733", width: 1 }, // 기본 스타일에서 굵기 조정
+    lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 1 }, // 기본 스타일에서 굵기 조정
     data: markLines,
   };
 };
@@ -277,7 +240,7 @@ export const getMarkLineData = (
     })),
     ...customMarkLines.map((time) => ({
       xAxis: time,
-      lineStyle: { type: "dashed", color: "#FF5733" },
+      lineStyle: { type: "dashed", color: CYCLE_COLOR },
       symbol: ["none"],
       label: {
         show: true,

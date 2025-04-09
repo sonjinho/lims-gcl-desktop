@@ -1,7 +1,11 @@
 //@ts-nocheck
-import { selectedStore } from "$lib/store/selectedStore";
+import {
+  AnaylzeConfig,
+  selectedStore,
+  TempVolume,
+} from "$lib/store/selectedStore";
 import { get } from "svelte/store";
-import { ExcelColumn, ExcelData, exportToExcel } from "./excel.utils";
+import { ExcelData, exportToExcel } from "./excel.utils";
 
 export enum TemperatureIndex {
   FRESH_FOOD = 0,
@@ -185,6 +189,7 @@ export default function IEC62552_ExportData(
       startIndex,
       endIndex,
     };
+
     row.testPeriodUnfrozen = getTestPeriodAverage(
       rawData,
       startIndex,
@@ -197,22 +202,17 @@ export default function IEC62552_ExportData(
       startIndex,
       endIndex,
       evaluateFrozenIndex
-      // [
-      //   ExcelColumn.TC_7,
-      //   ExcelColumn.TC_8,
-      //   ExcelColumn.TC_9,
-      //   ExcelColumn.TC_10,
-      //   ExcelColumn.TC_13,
-      // ]
     );
-    // row.testPeriodFrozen2Star = getTestPeriodAverage(
-    //   rawData,
-    //   startIndex,
-    //   endIndex,
-    //   [ExcelColumn.TC_11, ExcelColumn.TC_12]
-    // );
-    row.ambientTemp = getTestPeriodAverage(rawData, startIndex, endIndex, config.ambient);
-    row.testPeriodPower = getTestPeriodAverage(rawData, startIndex, endIndex, [POWER_INDEX]);
+
+    row.ambientTemp = getTestPeriodAverage(
+      rawData,
+      startIndex,
+      endIndex,
+      config.ambient
+    );
+    row.testPeriodPower = getTestPeriodAverage(rawData, startIndex, endIndex, [
+      POWER_INDEX,
+    ]);
     row.testPeriodABC =
       (dateTimeData[endIndex - 1].getTime() -
         dateTimeData[startIndex].getTime()) /
@@ -323,6 +323,9 @@ export default function IEC62552_ExportData(
 
     exportData.push(row);
   }
+
+  let minimumIndex = -1;
+  let minimum = 1000_000_000;
   for (let index = 0; index < exportData.length; index++) {
     const element = exportData[index];
     if (index < 2) {
@@ -334,16 +337,119 @@ export default function IEC62552_ExportData(
         exportData[index - 2].valid
       ) {
         element.testPeriodValid = true;
+        if (minimum > element.spreadPower) {
+          minimum = element.spreadPower;
+          minimumIndex = index;
+        }
       } else {
         element.testPeriodValid = false;
       }
     }
   }
-  exportData.
+
+  let PSS = -1;
+
+  if (minimumIndex != -1) {
+    const target = exportData[minimumIndex];
+    const k = minimumIndex;
+    const constV = getConstValue(config.ambient);
+    let blockA = [k, k + numberOfTCC - 1];
+    let blockB = [k + numberOfTCC, k + numberOfTCC * 2 - 1];
+    let blockC = [k + numberOfTCC * 2, k + numberOfTCC * 3 - 1];
+
+    const startIndex = cycleData[blockA[0]].index;
+    const endIndex = cycleData[blockC[1] + 1].index;
+
+    const PSS1 = target.spreadPower;
+    const Tat = constV.Tat;
+    const Tam = target.ambientTemp;
+    const c1 = constV.c1;
+    const c2 = constV.c2;
+    let tvArray = [];
+
+    let numer = 0;
+    let deno = 0;
+
+    // pantry = 17;
+    // wineStorage = 12;
+    // cellar = 12;
+    // freshFood = 4;
+    // chill =2;
+    // zeroStar = 0;
+    // oneStar = -6;
+    // twoStar = -12;
+    // threeStar = -18;
+
+    let count = 0;
+    function processTV(tv: TempVolume, Tit: number) {
+      if (!isValidTV(tv)) return;
+      count++;
+      const Tim = getTestPeriodAverage(rawData, startIndex, endIndex, tv.temp);
+
+      const value = c1 * (18 + Tit) + c2;
+      numer += tv.volume / value;
+      deno += (tv.volume * (Tam - Tim)) / value;
+    }
+
+    processTV(config.pantry, 17);
+    processTV(config.wineStorage, 12);
+    processTV(config.cellar, 12);
+    processTV(config.freshFood, 4);
+    processTV(config.chill, 2);
+
+    processTV(config.frozenZeroStar, 0);
+    processTV(config.frozenOneStar, -6);
+    processTV(config.frozenTwoStar, -12);
+    processTV(config.frozenThreeStar, -18);
+    processTV(config.frozenFourStar, -18);
+
+    if (count == 0) {
+      PSS = -1;
+      console.error("Something wrong");
+    }
+
+    if (count == 1) {
+      PSS = PSS1 * (
+        1+(Tat-Tam)*(numer/deno)
+      )*(1/(1+(Tat-Tam)*constV.deltaCopOne))
+    } else {
+      PSS = PSS1 * (
+        1+(Tat-Tam)*(numer/deno)
+      )*(1/(1+(Tat-Tam)*constV.deltaCopTwo))
+    }
+
+    exportData[minimumIndex].pss = PSS;
+  }
+  console.log(minimumIndex);
 
   exportToExcel(transformDataForExcel(exportData));
   return exportData;
 }
+
+function isValidTV(tv: TempVolume): boolean {
+  return tv.temp.length > 0 && tv.volume > 0;
+}
+function getConstValue(ambient: number) {
+  if (ambient == 32) {
+    return {
+      Tat: 32,
+      c1: 0.011364,
+      c2: 1.25,
+      deltaCopTwo: -0.014,
+      deltaCopOne: -0.019,
+    };
+  } else {
+    return {
+      Tat: 16,
+      c1: 0.011364,
+      c2: 1.25,
+      deltaCopTwo: 0.0,
+      deltaCopOne: -0.004,
+    };
+  }
+}
+
+function isMoreThanOne(config: AnaylzeConfig) {}
 
 function getTestPeriodAverage(rawData, startIndex, endIndex, columns) {
   let sums = new Array(columns.length).fill(0);
@@ -374,9 +480,11 @@ function formatLocalTime(date) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-function findRowWithMinSpreadPower(exportData: ExportRow[]): ExportRow | undefined {
+function findRowWithMinSpreadPower(
+  exportData: ExportRow[]
+): ExportRow | undefined {
   // testPeriodValid가 true인 항목 필터링
-  const validRows = exportData.filter(row => row.testPeriodValid);
+  const validRows = exportData.filter((row) => row.testPeriodValid);
 
   // 결과가 없으면 undefined 반환
   if (validRows.length === 0) return undefined;
@@ -404,6 +512,7 @@ const COLUMN_MAPPING: Record<keyof ExportRow, string> = {
   permittedPowerSpread: "Permitted Power Spread (%)",
   valid: "IEC Creteria Annex B",
   testPeriodValid: "Test Period Valid",
+  pss: "PSS"
 };
 
 function transformDataForExcel(data: ExportRow[]): Record<string, any>[] {
@@ -442,6 +551,7 @@ class ExportRow {
   permittedPowerSpread: number;
   valid: boolean;
   testPeriodValid: boolean;
+  pss: number;
 
   validate(): boolean {
     // If has TCC then longer than 6hr

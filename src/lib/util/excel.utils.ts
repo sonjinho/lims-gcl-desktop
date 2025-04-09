@@ -1,3 +1,4 @@
+import { excelDataStore } from "$lib/store/excelDataStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import * as XLSX from "xlsx";
@@ -39,20 +40,31 @@ export enum ExcelColumn {
   PowerFactor,
 }
 
-export default async function openExcelFile(): Promise<ExcelData | null> {
+export async function findExcelFile(): Promise<string | null> {
+  const selected = await open({
+    title: "Excel File (xlsx, xls, xlsb)",
+    filters: [{ name: "Excel 파일", extensions: ["xlsx", "xls", "xlsb"] }],
+    multiple: false,
+    directory: false,
+  });
+  return selected;
+}
+
+export default async function openExcelFile(selected: string): Promise<ExcelData | null> {
   try {
-    const selected = await open({
-      title: "Excel File (xlsx, xls, xlsb)",
-      filters: [{ name: "Excel 파일", extensions: ["xlsx", "xls", "xlsb"] }],
-      multiple: false,
-      directory: false,
-    });
+    // const selected = await open({
+    //   title: "Excel File (xlsx, xls, xlsb)",
+    //   filters: [{ name: "Excel 파일", extensions: ["xlsx", "xls", "xlsb"] }],
+    //   multiple: false,
+    //   directory: false,
+    // });
 
-    if (!selected) {
-      console.log("파일이 선택되지 않았습니다.");
-      return null;
-    }
+    // if (!selected) {
+    //   console.log("파일이 선택되지 않았습니다.");
+    //   return null;
+    // }
 
+    console.log(selected);
     let start = new Date();
     const fileData = await readFile(selected);
     const workbook = XLSX.read(fileData, {
@@ -74,7 +86,9 @@ export default async function openExcelFile(): Promise<ExcelData | null> {
       })
       //@ts-ignore
       .filter((row) => row.some((cell) => cell !== null && cell !== ""));
-    console.log("Finish Default Parse: " + (new Date().getTime() - start.getTime()) + "ms");
+    console.log(
+      "Finish Default Parse: " + (new Date().getTime() - start.getTime()) + "ms"
+    );
     jsonData = jsonData.map((row) => {
       let trimmedRow = [...row]; // 행 복사
       while (
@@ -100,13 +114,13 @@ export default async function openExcelFile(): Promise<ExcelData | null> {
     // console.log(optimizedData)
     console.log("Duration: " + (end.getTime() - start.getTime()) + "ms");
 
+    excelDataStore.set(optimizedData);
     return optimizedData;
   } catch (error) {
     console.error("Read Excel File Error:", error);
     return null;
   }
 }
-
 
 export function exportToExcel(data: any, fileName = "export.xlsx") {
   const worksheet = XLSX.utils.json_to_sheet(data);
