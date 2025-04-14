@@ -1,6 +1,6 @@
 <script>
     import { Label, Input } from "flowbite-svelte";
-    import IEC62552_ExportData from "$lib/util/iec.62552.3.util";
+    import IEC62552_ExportData, { IEC62552_ExportData_SS2 } from "$lib/util/iec.62552.3.util";
 
   export let analyzeData;
 
@@ -8,16 +8,29 @@
   const maxDate = new Date(analyzeData[analyzeData.length - 1][1]);
   const minDateStr = minDate.toISOString().slice(0, 16);
   const maxDateStr = maxDate.toISOString().slice(0, 16);
+  let ssType = 0;
   let startTime = minDateStr;
   let endTime = maxDateStr;
   let numberOfTCC = 3;
   function exportData() {
-    IEC62552_ExportData(analyzeData, new Date(startTime), new Date(endTime), numberOfTCC);
+    console.log(ssType, startTime, endTime,numberOfTCC);
+    if (ssType == 0) {
+      IEC62552_ExportData(analyzeData, new Date(startTime), new Date(endTime), numberOfTCC);
+    } else {
+      IEC62552_ExportData_SS2(analyzeData, new Date(startTime), new Date(endTime), numberOfTCC);
+    }
   }
 
 </script>
 <div class="flex flex-wrap items-center justify-end gap-4 p-4">
   <!-- 시작 시간 -->
+  <div class="flex flex-col">
+    <label for="type" class="text-sm font-semibold">Type</label>
+    <select title="type" bind:value={ssType}>
+      <option value="0" selected>SS1</option>
+      <option value="1">SS2</option>
+    </select>
+  </div>
   <div class="flex flex-col">
     <label for="start-time" class="text-sm font-semibold">Start Time</label>
     <input 

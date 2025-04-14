@@ -2,7 +2,7 @@
 import {
   AnaylzeConfig,
   selectedStore,
-  TempVolume,
+  TempVolume
 } from "$lib/store/selectedStore";
 import { get } from "svelte/store";
 import { ExcelData, exportToExcel } from "./excel.utils";
@@ -121,7 +121,7 @@ export default function IEC62552_ExportData(
       continue; // 스킵
     }
 
-    if (currentPower > 10) {
+    if (currentPower > 3) {
       continue;
     }
 
@@ -409,13 +409,15 @@ export default function IEC62552_ExportData(
     }
 
     if (count == 1) {
-      PSS = PSS1 * (
-        1+(Tat-Tam)*(numer/deno)
-      )*(1/(1+(Tat-Tam)*constV.deltaCopOne))
+      PSS =
+        PSS1 *
+        (1 + (Tat - Tam) * (numer / deno)) *
+        (1 / (1 + (Tat - Tam) * constV.deltaCopOne));
     } else {
-      PSS = PSS1 * (
-        1+(Tat-Tam)*(numer/deno)
-      )*(1/(1+(Tat-Tam)*constV.deltaCopTwo))
+      PSS =
+        PSS1 *
+        (1 + (Tat - Tam) * (numer / deno)) *
+        (1 / (1 + (Tat - Tam) * constV.deltaCopTwo));
     }
 
     exportData[minimumIndex].pss = PSS;
@@ -425,6 +427,7 @@ export default function IEC62552_ExportData(
   exportToExcel(transformDataForExcel(exportData));
   return exportData;
 }
+
 
 function isValidTV(tv: TempVolume): boolean {
   return tv.temp.length > 0 && tv.volume > 0;
@@ -512,7 +515,7 @@ const COLUMN_MAPPING: Record<keyof ExportRow, string> = {
   permittedPowerSpread: "Permitted Power Spread (%)",
   valid: "IEC Creteria Annex B",
   testPeriodValid: "Test Period Valid",
-  pss: "PSS"
+  pss: "PSS",
 };
 
 function transformDataForExcel(data: ExportRow[]): Record<string, any>[] {

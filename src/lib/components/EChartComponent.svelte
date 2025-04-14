@@ -10,8 +10,6 @@
 
   export let data;
   
-  const minDate = new Date(data[3][1]);
-  const maxDate = new Date(data[data.length - 1][1]);
   let chartContainer;
   let chartInstance;
   let customMarkLines = [];
@@ -123,7 +121,7 @@
           name: "Temperature (℃)",
           position: "left",
           min: -30,
-          max: 30,
+          max: 40,
         },
         {
           type: "value",
@@ -145,17 +143,6 @@
     chartInstance.setOption(option, true);
     
     isChartLoaded = true; // 모든 작업 완료 후 로드 상태 업데이트
-  }
-
-  function updateMarkLines() {
-    if (!chartInstance || !data) return;
-
-    const midnightLines = getMidnightLines(xAxisData);
-    const markLineData = getMarkLineData(midnightLines, customMarkLines);
-
-    chartInstance.setOption({
-      series: [{ markLine: markLineData }],
-    });
   }
 
   onMount(async () => {

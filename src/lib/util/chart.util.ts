@@ -187,7 +187,7 @@ export const getCycleDashedData = (
       continue; // 스킵
     }
 
-    if (currentPower > 10) {
+    if (currentPower > 3) {
       continue;
     }
     // 조건 2: currentPower가 nextPower(i+2)보다 threshold 이상 작을 때
