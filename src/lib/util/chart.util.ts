@@ -91,7 +91,9 @@ export const convertExcelDataToChartData = (
   });
   const dataRows = excelData.slice(2);
 
-  const powerIndex = headers.findIndex((header) => header.toLocaleLowerCase() == "power");
+  const powerIndex = headers.findIndex(
+    (header) => header.toLocaleLowerCase() == "power"
+  );
   // console.log(powerIndex, headers)
 
   const xAxisData = dataRows.map((row) => new Date(row[1]).getTime());
@@ -133,36 +135,45 @@ export const convertExcelDataToChartData = (
     yAxisIndex: 0, // 필요에 따라 조정 가능
   };
 
+  let detectSeries = getCycleDashedData(powerData, xAxisData);
   const cycleSeries = {
     name: "cycle",
     type: "line" as const,
     data: [],
-    lineStye: { color: CYCLE_COLOR },
+    lineStyle: { color: CYCLE_COLOR, width: 0.1 },
     itemStyle: { color: CYCLE_COLOR },
     symbol: "none" as const,
-    markLine: getCycleDashedData(powerData, xAxisData),
+    markLine: detectSeries[0],
     yAxisIndex: 1,
+  };
+
+  const defrostRecoverySeries = {
+    name: "DefrostRecovery",
+    type: "line" as const,
+    data: [],
+    symbol: "none" as const,
+    lineStyle: { color: "rgb(255, 99, 132)", width: 0.1 },
+    markLine: detectSeries[1],
+    yAxisIndex: 0,
   };
 
   console.log(
     "Finish PreProcessing: " + (new Date().getTime() - start.getTime()) + "ms"
   );
   return {
-    series: [baselineSeries, cycleSeries, ...series], // 기존 시리즈에 baseline 추가
+    series: [baselineSeries, cycleSeries, defrostRecoverySeries, ...series], // 기존 시리즈에 baseline 추가
     unitMap,
   };
 };
 
-export const getCycleDashedData = (
-  powerData: any[], // powerData는 Excel 데이터의 한 열로 가정
-  timeData: number[],
-  threshold: number = 30
-) => {
-  const markLines: any[] = [];
+function detectCycleData(dateTimeData: Date[], powerData: number[]) {
   const set = new Set();
 
-  // powerData와 timeData의 길이가 동일하다고 가정
-  for (let i = 0; i < powerData.length - 6; i++) {
+  let cycleData = [];
+  let count = 0;
+  let threshold = 20;
+
+  for (let i = 0; i < dateTimeData.length - 6; i++) {
     const currentPower = Number(powerData[i]) || 0; // 숫자가 아닌 경우 0으로 처리
     const nextPower2 = Number(powerData[i + 5]) || 0; // i+2 값
     const comparePower1 = Number(powerData[i + 1]) || 0; // i+1 값
@@ -190,8 +201,9 @@ export const getCycleDashedData = (
     if (currentPower > 3) {
       continue;
     }
-    // 조건 2: currentPower가 nextPower(i+2)보다 threshold 이상 작을 때
+
     if (currentPower < nextPower2 - threshold) {
+      // cycle
       if (
         set.has(i - 1) ||
         set.has(i - 2) ||
@@ -201,26 +213,105 @@ export const getCycleDashedData = (
       ) {
         continue;
       }
-      markLines.push({
-        xAxis: timeData[i], // 해당 시점에 markLine 추가
-        lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 1 }, // 굵기 조정
-        symbol: ["none", "none"],
-        symbolSize: [0, 0],
-        label: {
-          show: false,
-          formatter: () => formatDateTime(new Date(timeData[i])),
-        },
-      });
       set.add(i);
+      cycleData.push({
+        index: i,
+        count: count++,
+        dateTime: dateTimeData[i],
+        max: -1,
+      });
+    }
+  }
+  return cycleData;
+}
+
+export const getCycleDashedData = (
+  powerData: any[], // powerData는 Excel 데이터의 한 열로 가정
+  timeData: number[],
+) => {
+  const set = new Set();
+
+  let cycleData = detectCycleData(timeData, powerData);
+
+  let defrostRecoveryPeriod = [];
+
+  for (let i = 1; i < cycleData.length - 1; i++) {
+    let index = i - 1;
+    let maxIndex = 0;
+
+    const beforeCycle = cycleData[index];
+    const currentCycle = cycleData[i];
+    const nextCycle = cycleData[i + 1];
+
+    if (beforeCycle.max == -1) {
+      let max = -1;
+      for (let j = beforeCycle.index; j < currentCycle.index; j++) {
+        if (max < powerData[j]) {
+          max = powerData[j];
+        }
+      }
+      beforeCycle.max = max;
+    }
+
+    if (currentCycle.max == -1) {
+      let max = -1;
+      for (let j = currentCycle.index; j < nextCycle.index; j++) {
+        if (max < powerData[j]) {
+          max = powerData[j];
+          maxIndex = j;
+        }
+      }
+      currentCycle.max = max;
+    }
+
+    if (beforeCycle.max * 1.5 < currentCycle.max) {
+      defrostRecoveryPeriod.push(maxIndex);
     }
   }
 
-  return {
+  let series = [];
+
+  let markLineData = cycleData.map((cycle) => {
+    return {
+      xAxis: timeData[cycle.index],
+      lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 1 }, // 굵기 조정
+      symbol: ["none", "none"],
+      symbolSize: [0, 0],
+      label: {
+        show: false,
+        formatter: () => formatDateTime(new Date(timeData[i])),
+      },
+    };
+  });
+
+  series.push({
     silent: true,
     symbol: ["none"],
-    lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 1 }, // 기본 스타일에서 굵기 조정
-    data: markLines,
-  };
+    lineStyle: { type: "dashed", color: CYCLE_COLOR, width: 0.1 }, // 기본 스타일에서 굵기 조정
+    data: markLineData,
+  });
+
+  let defrostRecoverySeries = defrostRecoveryPeriod.map((index) => {
+    return {
+      xAxis: timeData[index],
+      lineStyle: { type: "dashed", color: "rgb(255, 99, 132)", width: 1 }, // 굵기 조정
+      symbol: ["none", "none"],
+      symbolSize: [0, 0],
+      label: {
+        show: false,
+        formatter: () => formatDateTime(new Date(timeData[index])),
+      },
+    };
+  });
+
+  series.push({
+    silent: true,
+    symbol: ["none"],
+    lineStyle: { type: "dashed", color: "rgb(255, 99, 132)", width: 0.1 }, // 기본 스타일에서 굵기 조정
+    data: defrostRecoverySeries,
+  })
+
+  return series;
 };
 
 export const getMarkLineData = (

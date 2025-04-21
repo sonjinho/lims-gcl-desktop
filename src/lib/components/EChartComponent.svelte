@@ -54,7 +54,7 @@
 
     const legendData = series.map((s, index) => ({
       name: s.name,
-      selected: index < 7,
+      selected: index < 8,
     }));
 
     const option = {
