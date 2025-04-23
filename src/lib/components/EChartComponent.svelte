@@ -13,7 +13,6 @@
   let chartContainer;
   let chartInstance;
   let customMarkLines = [];
-  let xAxisData = [];
   let unitMap = {};
   let isChartLoaded = false;
 
@@ -43,14 +42,6 @@
 
     const { series } = chartData;
     unitMap = chartData.unitMap;
-    xAxisData = data.slice(2).map((row) => {
-      const parsedDate = new Date(row[1]);
-      if (isNaN(parsedDate.getTime())) {
-        console.error(`Invalid date: ${row[1]}`);
-        return 0;
-      }
-      return parsedDate.getTime();
-    });
 
     const legendData = series.map((s, index) => ({
       name: s.name,

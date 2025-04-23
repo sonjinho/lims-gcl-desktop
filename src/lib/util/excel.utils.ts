@@ -2,6 +2,13 @@ import { excelDataStore } from "$lib/store/excelDataStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import * as XLSX from "xlsx";
+import { transformDataForExcel } from "./iec.62552.3.ss1.util";
+import type {
+  PeriodExcelResult,
+  PeriodResult,
+  SS2Result,
+} from "./iec.62552.3.ss2.util";
+import type { Tdf } from "./iec.util";
 
 export type ExcelData = (string | number | null | Date)[][]; // Date 타입 추가
 
@@ -50,7 +57,9 @@ export async function findExcelFile(): Promise<string | null> {
   return selected;
 }
 
-export default async function openExcelFile(selected: string): Promise<ExcelData | null> {
+export default async function openExcelFile(
+  selected: string
+): Promise<ExcelData | null> {
   try {
     // const selected = await open({
     //   title: "Excel File (xlsx, xls, xlsb)",
@@ -123,8 +132,129 @@ export default async function openExcelFile(selected: string): Promise<ExcelData
 }
 
 export function exportToExcel(data: any, fileName = "export.xlsx") {
-  const worksheet = XLSX.utils.json_to_sheet(data);
+  const transformedData = transformDataForExcel(data);
+  const worksheet = XLSX.utils.json_to_sheet(transformedData);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
   XLSX.writeFile(workbook, fileName);
+}
+
+function flattenResultSheet(result: SS2Result): Record<string, any> {
+  const flat: Record<string, any> = {
+    Edf: result.Edf,
+    PSS: result.PSS,
+    PSS2: result.PSS2,
+  };
+
+  for (const key in result.Thdf) {
+    if (result.Thdf[key as keyof Tdf] === -1000) {
+      flat[`Thdf.${key}`] = "None";
+    } else {
+      flat[`Thdf.${key}`] = result.Thdf[key as keyof Tdf];
+    }
+  }
+
+  for (const key in result.TSS2) {
+    if (result.TSS2[key as keyof Tdf] === -1000) {
+      flat[`TSS2.${key}`] = "None";
+    } else {
+      flat[`TSS2.${key}`] = result.TSS2[key as keyof Tdf];
+    }
+  }
+
+  return flat;
+}
+
+function flattenPeriod(
+  label: string,
+  period: PeriodResult
+): Record<string, any> {
+  return {
+    [`${label}_start`]: period.start,
+    [`${label}_end`]: period.end,
+    [`${label}_duration`]: period.duration,
+    [`${label}_power`]: period.power,
+    [`${label}_frozenTemp`]: period.frozenTemp,
+    [`${label}_unfrozenTemp`]: period.unfrozenTemp,
+  };
+}
+
+
+export function exportSS2ToExcel(
+  result: SS2Result,
+  fileName = "SS2_Export.xlsx"
+) {
+  const sheet1Data = [flattenResultSheet(result)];
+
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
+  XLSX.utils.book_append_sheet(wb, ws1, "Result");
+
+  const ws2 = XLSX.utils.aoa_to_sheet(
+    extractPeriodXY_ver0(result.periodX, result.periodY, result.xyResult)
+  );
+  XLSX.utils.book_append_sheet(wb, ws2, "PeriodX,Y");
+
+  const ws3 = XLSX.utils.json_to_sheet(
+    extractPeriodDF_ver0(result.periodD, result.periodF, result.dfResult)
+  );
+  XLSX.utils.book_append_sheet(wb, ws3, "PeriodD,F");
+
+  XLSX.writeFile(wb, fileName);
+}
+
+function extractPeriodXY_ver0(
+  p1: PeriodResult,
+  p2: PeriodResult,
+  result: PeriodExcelResult
+): any[] {
+  return [
+    ["Parameter", "Period X", "Period Y", "Spread/Criteria", "Notes"],
+    [
+      "Length",
+      p1.duration,
+      p2.duration,
+      `Number of TCC: ${result.numberOfTCC}, ratio: ${result.ratio}`,
+      "0.8 to 1.25, >=4h, >= 4TCC",
+    ],
+    ["Power W", p1.power, p2.power, result.power, " < 2% or < 1W"],
+    [
+      "Fresh Food ℃",
+      p1.unfrozenTemp,
+      p2.unfrozenTemp,
+      result.unfrozen,
+      " < 0.5 K",
+    ],
+    ["Freezer ℃", p1.frozenTemp, p2.frozenTemp, result.frozen, " < 0.5 K"],
+  ];
+}
+
+function extractPeriodDF_ver0(
+  p1: PeriodResult,
+  p2: PeriodResult,
+  result: PeriodExcelResult
+): any[] {
+  return [
+    ["Parameter", "Period D", "Period F", "Spread/Criteria", "Notes"],
+    [
+      "Length",
+      p1.duration,
+      p2.duration,
+      `Number of TCC: ${result.numberOfTCC}, ratio: ${result.ratio}`,
+      "0.8 to 1.25, >=3h, >= 3TCC",
+    ],
+    ["Power W", p1.power, p2.power, result.power, " < 2% or < 1W"],
+    [
+      "Fresh Food ℃",
+      p1.unfrozenTemp,
+      p2.unfrozenTemp,
+      result.unfrozen,
+      " < 0.5 K",
+    ],
+    ["Freezer ℃", p1.frozenTemp, p2.frozenTemp, result.frozen, " < 0.5 K"],
+  ];
+}
+export function exportSS2(result: SS2Result) {
+  const ws2 = XLSX.utils.aoa_to_sheet([]);
 }

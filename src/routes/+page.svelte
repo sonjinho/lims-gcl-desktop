@@ -2,7 +2,7 @@
   import ExcelResultView from "$lib/components/ExcelResultView.svelte";
   import { excelDataStore } from "$lib/store/excelDataStore";
   import { itemsStore } from "$lib/store/itemsStore";
-  import { AnaylzeConfig, selectedStore } from "$lib/store/selectedStore";
+  import { selectedStore } from "$lib/store/selectedStore";
   import { loadAll, loadById, SS1Config } from "$lib/util/db.util";
   import openExcelFile, { findExcelFile } from "$lib/util/excel.utils";
   import { Button, Select } from "flowbite-svelte";
@@ -36,8 +36,6 @@
       let loadConfig = await loadById(configId);
       console.log("loadConfig", loadConfig);
       selectedStore.set(JSON.parse(loadConfig.config));
-    } else {
-      selectedStore.set(new AnaylzeConfig());
     }
   }
 </script>

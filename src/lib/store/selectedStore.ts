@@ -1,12 +1,14 @@
 import { TemperatureIndex } from "$lib/util/iec.62552.3.util";
 import { writable, type Writable } from "svelte/store";
 
+export type { AnalyzeConfig  };
+
 export interface TempVolume {
   temp: number[];
   volume: number;
 }
 
-export interface AnaylzeConfig {
+interface AnalyzeConfig {
   name: string;
   targetAmbient: number;
   evaluateUnfrozen: TemperatureIndex;
@@ -26,7 +28,7 @@ export interface AnaylzeConfig {
   frozenFourStar: TempVolume;
 }
 
-export const selectedStore: Writable<AnaylzeConfig> = writable({
+export const selectedStore: Writable<AnalyzeConfig> = writable({
   name: '',
   targetAmbient: 32,
   evaluateUnfrozen: TemperatureIndex.FRESH_FOOD,
@@ -50,7 +52,7 @@ export function isValidTV(tv: TempVolume) {
   return tv.temp.length > 0 && tv.volume > 0;
 }
 
-export function isTwoComaprtment(config: AnaylzeConfig) {
+export function isTwoComaprtment(config: AnalyzeConfig) {
   let count: number = 0;
   if (isValidTV(config.freshFood)) {
     count++;

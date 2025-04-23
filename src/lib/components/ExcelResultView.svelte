@@ -2,6 +2,7 @@
   import { Button, ButtonGroup, StepIndicator } from "flowbite-svelte";
   import DataSetting from "./DataSetting.svelte";
   import EChartComponent from "./EChartComponent.svelte";
+  import IECChartComponent from "./IECChartComponent.svelte";
   import ModelView from "./ModelView.svelte";
 
   export let result;
@@ -76,7 +77,8 @@
     <DataSetting data={chunkData} />
   {:else if currentStep == 3}
     {#if chunkData.length > 0}
-      <EChartComponent data={chunkData} />
+    <IECChartComponent data= {chunkData} />
+      <!-- <EChartComponent data={chunkData} /> -->
     {/if}
   {/if}
 </main>

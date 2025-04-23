@@ -1,20 +1,24 @@
 import { differenceInSeconds } from "date-fns";
 import {
-  AnaylzeConfig,
+  type AnalyzeConfig,
   isTwoComaprtment,
   isValidTV,
 } from "../store/selectedStore";
-import { ExcelData } from "./excel.utils";
-import { CycleData, getConstValue, Tdf } from "./iec.62552.3.util";
-import getTestPeriodAverage, { ConstantTemperature } from "./iec.util";
+import type { ExcelData } from "./excel.utils";
+import getTestPeriodAverage, {
+  ConstantTemperature,
+  type CycleData,
+  getConstValue,
+  type Tdf,
+} from "./iec.util";
 
-function run(
+export function runSS1(
   cycleData: CycleData[],
   timeData: Date[],
   rawData: ExcelData,
   evaluateFrozenIndex: number[],
   evaluateUnfrozenIndex: number[],
-  config: AnaylzeConfig,
+  config: AnalyzeConfig,
   numberOfTCC: number
 ): ExportRow[] {
   if (cycleData.length < numberOfTCC * 3) {
@@ -54,7 +58,13 @@ function run(
       evaluateUnfrozenIndex,
       config
     );
+    row.blockA = `TCC ${k} to ${k + numberOfTCC - 1}`;
+    row.blockB = `TCC ${k + numberOfTCC} to ${k + numberOfTCC * 2 - 1}`;
+    row.blockC = `TCC ${k + numberOfTCC * 2} to ${k + numberOfTCC * 3 - 1}`;
 
+    row.blockATime = `${timeData[cycleData[k].index]} to ${timeData[cycleData[k + numberOfTCC - 1].index]}`;
+    row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${timeData[cycleData[k + numberOfTCC * 2 - 1].index]}`
+    row.blockCTime = `${timeData[cycleData[k + numberOfTCC * 2].index]} to ${timeData[cycleData[k + numberOfTCC * 3 - 1].index]}`;
     exportData.push(row);
   }
 
@@ -91,7 +101,7 @@ function run(
     const startIndex = cycleData[k].index;
     const endIndex = cycleData[k + numberOfTCC * 3].index;
 
-    const PSS1 = target.spreadPower;
+    const PSS1 = target.testPeriodPower;
     const Tat = constV.Tat;
     const Tam = target.ambientTemp;
     const c1 = constV.c1;
@@ -109,6 +119,7 @@ function run(
       PSS1 *
       (1 + (Tat - Tam) * (numer / deno)) *
       (1 / (1 + (Tat - Tam) * deltaCop));
+    console.log(Tdf, PSS1);
   }
   return exportData;
 }
@@ -121,7 +132,7 @@ function createExportRow(
   timeData: Date[],
   evaluateFrozenIndex: number[],
   evaluateUnfrozenIndex: number[],
-  config: AnaylzeConfig
+  config: AnalyzeConfig
 ): ExportRow {
   let row = new ExportRow();
 
@@ -191,6 +202,17 @@ function createExportRow(
     evaluateFrozenIndex,
     row.testPeriodABC
   );
+
+  // convert to integer
+  const mediumA = Math.trunc(blockA[1] + blockA[0] / 2);
+  const mediumC = Math.trunc(blockC[1] + blockC[0] / 2);
+  row.slopePower =
+    Math.abs(
+      getTestPeriodAverage(rawData, blockC[0], blockC[1], [config.power]) -
+        getTestPeriodAverage(rawData, blockA[0], blockA[1], [config.power])
+    ) /
+    ((differenceInSeconds(timeData[mediumC], timeData[mediumA]) / 3600) *
+      getTestPeriodAverage(rawData, blockA[0], blockC[1], [config.power]));
 
   row.permittedPowerSpread = getPermittedPowerSpread(row.testPeriodABC);
 
@@ -294,7 +316,7 @@ function calcTdf(
   rawData: ExcelData,
   beginIndex: number,
   endIndex: number,
-  config: AnaylzeConfig
+  config: AnalyzeConfig
 ): Tdf {
   let rtn: Tdf = {
     freshFood: -1000,
@@ -403,7 +425,7 @@ function calcTdf(
 }
 
 function calcDenominator(
-  config: AnaylzeConfig,
+  config: AnalyzeConfig,
   c1: number,
   c2: number,
   Tam: number,
@@ -466,7 +488,7 @@ function calcDenominator(
   return value;
 }
 
-function calcNumer(config: AnaylzeConfig, c1: number, c2: number, Tam: number) {
+function calcNumer(config: AnalyzeConfig, c1: number, c2: number, Tam: number) {
   let value = 0;
   if (isValidTV(config.freshFood)) {
     value +=
@@ -544,9 +566,14 @@ const COLUMN_MAPPING: Record<keyof ExportRow, string> = {
   valid: "IEC Creteria Annex B",
   testPeriodValid: "Test Period Valid",
   pss: "PSS",
+  blockATime: "Block A Time",
+  blockBTime: "Block B Time",
+  blockCTime: "Block C Time",
 };
 
-function transformDataForExcel(data: ExportRow[]): Record<string, any>[] {
+export function transformDataForExcel(
+  data: ExportRow[]
+): Record<string, any>[] {
   return data.map((row) => {
     const transformedRow: Record<string, any> = {};
     for (const key in row) {
@@ -583,6 +610,49 @@ class ExportRow {
   valid: boolean;
   testPeriodValid: boolean;
   pss: number;
+  
+  blockATime: string = '';
+  blockBTime: string = '';
+  blockCTime: string = '';
+  constructor(
+    blockA: string = "",
+    blockB: string = "",
+    blockC: string = "",
+    testPeriodUnfrozen: number = 0,
+    testPeriodFrozen: number = 0,
+    testPeriodPower: number = 0,
+    testPeriodABC: number = 0,
+    ambientTemp: number = 0,
+    spreadUnfrozen: number = 0,
+    spreadFrozen: number = 0,
+    spreadPower: number = 0,
+    slopeUnfrozen: number = 0,
+    slopeFrozen: number = 0,
+    slopePower: number = 0,
+    permittedPowerSpread: number = 0,
+    valid: boolean = false,
+    testPeriodValid: boolean = false,
+    pss: number = 0
+  ) {
+    this.blockA = blockA;
+    this.blockB = blockB;
+    this.blockC = blockC;
+    this.testPeriodUnfrozen = testPeriodUnfrozen;
+    this.testPeriodFrozen = testPeriodFrozen;
+    this.testPeriodPower = testPeriodPower;
+    this.testPeriodABC = testPeriodABC;
+    this.ambientTemp = ambientTemp;
+    this.spreadUnfrozen = spreadUnfrozen;
+    this.spreadFrozen = spreadFrozen;
+    this.spreadPower = spreadPower;
+    this.slopeUnfrozen = slopeUnfrozen;
+    this.slopeFrozen = slopeFrozen;
+    this.slopePower = slopePower;
+    this.permittedPowerSpread = permittedPowerSpread;
+    this.valid = valid;
+    this.testPeriodValid = testPeriodValid;
+    this.pss = pss;
+  }
 }
 
 function validate(row: ExportRow): boolean {
