@@ -1,6 +1,9 @@
 <script>
-  import { exportToExcel } from "$lib/util/excel.utils";
+  import { selectedStore } from "$lib/store/selectedStore";
+  import { exportSS2ToExcel, exportToExcel } from "$lib/util/excel.utils";
+  import { PeriodBlock } from "$lib/util/iec.62552.3.ss2.util";
   import IEC62552_ExportData, {
+    getCycleData,
     IEC62552_ExportData_SS2,
   } from "$lib/util/iec.62552.3.util";
   import { convertToChartData } from "$lib/util/iec.chart.util";
@@ -17,7 +20,9 @@
     TableBodyRow,
     TableHead,
     TableHeadCell,
+    Toggle,
   } from "flowbite-svelte";
+  import { CircleMinusSolid, CirclePlusSolid } from "flowbite-svelte-icons";
   import { onDestroy, onMount } from "svelte";
 
   export let data;
@@ -25,15 +30,37 @@
   let chartInstance;
   let isChartLoaded = false;
 
-  const minDate = new Date(data[3][1]);
-  const maxDate = new Date(data[data.length - 1][1]);
-  const minDateStr = minDate.toISOString().slice(0, 16);
-  const maxDateStr = maxDate.toISOString().slice(0, 16);
+  const config = $selectedStore;
+  const minDate = new Date(data[3][config.xAxis]);
+  const maxDate = new Date(data[data.length - 1][config.xAxis]);
+  const minDateStr = toLocalDatetimeString(minDate);
+  const maxDateStr = toLocalDatetimeString(maxDate);
+
+  function toLocalDatetimeString(date) {
+    const pad = (n) => n.toString().padStart(2, "0");
+    return (
+      date.getFullYear() +
+      "-" +
+      pad(date.getMonth() + 1) +
+      "-" +
+      pad(date.getDate()) +
+      "T" +
+      pad(date.getHours()) +
+      ":" +
+      pad(date.getMinutes())
+    );
+  }
+  // set default 0
+  let mode = 1;
   let ssType = 0;
   let startTime = minDateStr;
   let endTime = maxDateStr;
   let numberOfTCC = 3;
+  let editTarget = 1;
 
+  let cycleData = [];
+  let periodBlocks = [new PeriodBlock()];
+  let timeData = [];
   let exportRow = [];
 
   let ssItems = [
@@ -58,12 +85,14 @@
       );
       exportToExcel(exportRow);
     } else {
-      IEC62552_ExportData_SS2(
+      let ss2Result = IEC62552_ExportData_SS2(
         data,
         new Date(startTime),
-        new Date(endTime),
-        numberOfTCC
+        new Date(endTime)
       );
+      if (ss2Result) {
+        exportSS2ToExcel(ss2Result);
+      }
     }
   }
   function exportDataToExcel() {
@@ -81,6 +110,17 @@
 
   const handleResize = () => chartInstance?.resize();
 
+  async function submitManual() {
+    if (mode == 0) {
+      return;
+    }
+
+    await updateChart();
+
+
+
+  }
+
   async function updateChart() {
     if (!chartContainer) {
       return;
@@ -96,7 +136,7 @@
           data,
           startTime,
           endTime,
-          numberOfTCC,
+          cycleData,
           ssType
         );
         resolve(result);
@@ -114,6 +154,18 @@
   }
 
   onMount(async () => {
+    console.log(startTime, endTime);
+    const rawData = data.slice(2);
+
+    cycleData = getCycleData(
+      rawData,
+      new Date(startTime),
+      new Date(endTime),
+      config
+    );
+
+    timeData = rawData.map((row) => new Date(row[config.xAxis]));
+    console.log(cycleData);
     if (data && chartContainer) {
       isChartLoaded = false;
       await updateChart();
@@ -127,9 +179,69 @@
       chartInstance.dispose();
     }
   });
+
+  function addRow(currentIndex) {
+    const newRow = { index: cycleData[currentIndex].index + 1, count: 0 };
+    // 현재 인덱스 다음에 새로운 행 삽입
+    cycleData = [
+      ...cycleData.slice(0, currentIndex + 1),
+      newRow,
+      ...cycleData.slice(currentIndex + 1).map((row) => ({
+        ...row,
+        index: row.index + 1, // 이후 행들의 index를 1씩 증가
+      })),
+    ];
+  }
+
+  function deleteRow(index) {
+    cycleData = cycleData
+      .filter((_, i) => i !== index) // 해당 인덱스의 행 제거
+      .map((row) => ({
+        ...row,
+        index: row.index > cycleData[index].index ? row.index - 1 : row.index, // 삭제된 행 이후의 index를 1씩 감소
+      }));
+  }
+
+  function addPeriodBlock(index) {
+    const newBlock = {
+      periodD: { start: 0, end: 0 },
+      periodF: { start: 0, end: 0 },
+      periodX: { start: 0, end: 0 },
+      periodY: { start: 0, end: 0 },
+      defrostRecoveryIndex: 0,
+      nominalDefrostRecoveryIndex: 0,
+      lastPeriod: false
+    };
+    periodBlocks = [
+      ...periodBlocks.slice(0, index + 1),
+      newBlock,
+      ...periodBlocks.slice(index + 1)
+    ];
+  }
+
+  // PeriodBlock 삭제
+  function deletePeriodBlock(index) {
+    if (periodBlocks.length > 1) {
+      periodBlocks = periodBlocks.filter((_, i) => i !== index);
+    }
+  }
+  
 </script>
 
 <div class="flex flex-wrap items-center justify-end gap-4 p-4">
+  <div class="flex flex-col">
+    <Label for="mode" class="text-sm font-semibold">
+      Mode
+      <Select
+        title="mode"
+        bind:value={mode}
+        items={[
+          { value: 0, name: "Auto" },
+          { value: 1, name: "Manual" },
+        ]}
+      />
+    </Label>
+  </div>
   <div class="flex flex-col">
     <Label for="Type" class="text-sm font-semibold">
       Type
@@ -172,13 +284,7 @@
   <div class="flex flex-col justify-center items-center mt-5">
     <ButtonGroup>
       <Button onclick={render}>Render</Button>
-    </ButtonGroup>
-  </div>
-  <!-- 버튼 -->
-  <div class="flex flex-col justify-center items-center mt-5">
-    <ButtonGroup>
       <Button onclick={exportData}>Verify</Button>
-      <Button onclick={exportDataToExcel}>Export</Button>
     </ButtonGroup>
   </div>
 </div>
@@ -194,6 +300,203 @@
   {/if}
 </div>
 
+{#if mode == 1}
+  <div class="flex flex-wrap items-center justify-end gap-4 p-4">
+    <div class="flex flex-col">
+      <Select
+        bind:value={editTarget}
+        items={[
+          {
+            value: 0,
+            name: "TCC",
+          },
+          {
+            value: 1,
+            name: "Period - SS2",
+          },
+        ]}
+      />
+    </div>
+    <div class="flex flex-col">
+      <Button onclick={()=>{submitManual();}}>Submit</Button>
+    </div>
+  </div>
+  {#if editTarget == 0}
+    <Table>
+      <TableHead>
+        <TableHeadCell>
+          <p>Time Index</p>
+        </TableHeadCell>
+        <TableHeadCell>
+          <p>#TCC</p>
+        </TableHeadCell>
+        <TableHeadCell>Time</TableHeadCell>
+        <TableHeadCell>Action</TableHeadCell>
+      </TableHead>
+      <TableBody>
+        {#each cycleData as cycle, index}
+          <TableBodyRow>
+            <TableBodyCell>
+              <Input type="number" bind:value={cycle.index} step="1" />
+            </TableBodyCell>
+            <TableBodyCell>
+              <p>{index}</p>
+            </TableBodyCell>
+            <TableBodyCell>
+              <p>{timeData[cycle.index]?.toISOString() ?? "N/A"}</p>
+            </TableBodyCell>
+            <TableBodyCell>
+              <ButtonGroup>
+                <Button onclick={() => addRow(index)}>
+                  <CirclePlusSolid />
+                </Button>
+                <Button onclick={() => deleteRow(index)}>
+                  <CircleMinusSolid />
+                </Button>
+              </ButtonGroup>
+            </TableBodyCell>
+          </TableBodyRow>
+        {/each}
+      </TableBody>
+    </Table>
+  {:else if editTarget == 1}
+    {#each periodBlocks as block, index}
+    <h3 class="font-semibold">Block {index + 1}</h3>
+    <div class="flex justify-end">
+      <ButtonGroup>
+        <Button onclick={()=>{addPeriodBlock(index)}}><CirclePlusSolid/></Button>
+        <Button onclick={()=>{deletePeriodBlock(index)}}><CircleMinusSolid/></Button>
+      </ButtonGroup>
+    </div>
+      <Table>
+        <TableHead>
+          <TableHeadCell>Target</TableHeadCell>
+          <TableHeadCell>Start Index</TableHeadCell>
+          <TableHeadCell>Start Time</TableHeadCell>
+          <TableHeadCell>End Index</TableHeadCell>
+          <TableHeadCell>End Time</TableHeadCell>
+        </TableHead>
+        <TableBody>
+          <TableBodyRow>
+            <TableBodyCell>Period X</TableBodyCell>
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodX.start} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodX.start]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodX.end} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodX.end]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+          </TableBodyRow>
+          <TableBodyRow>
+            <TableBodyCell>Period Y</TableBodyCell>
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodY.start} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodY.start]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodY.end} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodY.end]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+          </TableBodyRow>
+          <TableBodyRow>
+            <TableBodyCell>Period D</TableBodyCell>
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodD.start} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodD.start]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodD.end} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodD.end]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+          </TableBodyRow>
+          <TableBodyRow>
+            <TableBodyCell>Period F</TableBodyCell>
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodF.start} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodF.start]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+            <TableBodyCell>
+              <Input type="number" step="1" bind:value={block.periodF.end} />
+            </TableBodyCell>
+            <TableBodyCell
+              ><p>
+                {timeData[block.periodF.end]?.toISOString() ?? "N/A"}
+              </p></TableBodyCell
+            >
+          </TableBodyRow>
+          <TableBodyRow>
+            <TableBodyCell>
+              <Label>
+                Last Defrost
+                <Toggle bind:value={block.lastPeriod} class="my-4"/>
+              </Label>
+            </TableBodyCell>
+            <TableBodyCell>
+              <Label>
+                Defrost Recovery Index
+                <Input
+                  type="number"
+                  step="1"
+                  bind:value={block.defrostRecoveryIndex}
+                />
+              </Label>
+            </TableBodyCell>
+            <TableBodyCell>
+              <p>
+                {timeData[block.defrostRecoveryIndex]?.toISOString() ?? "N/A"}
+              </p>
+            </TableBodyCell>
+            <TableBodyCell>
+              <Label>
+                Nominal Defrost Recovery Index
+                <Input
+                  type="number"
+                  step="1"
+                  bind:value={block.nominalDefrostRecoveryIndex}
+                />
+              </Label>
+            </TableBodyCell>
+            <TableBodyCell>
+              <p>
+                {timeData[block.nominalDefrostRecoveryIndex]?.toISOString() ?? "N/A"}
+              </p>
+            </TableBodyCell>
+            
+          </TableBodyRow>
+        </TableBody>
+      </Table>
+    {/each}
+  {/if}
+{/if}
 {#if exportRow.length > 0 && ssType == 0}
   <div class="flex flex-wrap items-center justify-end gap-4 p-4">
     <div class="flex flex-col justify-center items-center mt-5">

@@ -12,6 +12,26 @@ import getTestPeriodAverage, {
   type Tdf,
 } from "./iec.util";
 
+export function runSS1_manual(
+  rawData: ExcelData,
+  timeData: Date[],
+  cycleData: CycleData[],
+  evaluateFrozenIndex: number[],
+  evaluateUnfrozenIndex: number[],
+  numberOfTCC: number,
+  config: AnalyzeConfig,
+): ExportRow[] {
+  return runSS1(
+    cycleData,
+    timeData,
+    rawData,
+    evaluateFrozenIndex,
+    evaluateUnfrozenIndex,
+    config,
+    numberOfTCC
+  );
+}
+
 export function runSS1(
   cycleData: CycleData[],
   timeData: Date[],
@@ -25,27 +45,18 @@ export function runSS1(
     alert("Not Enough TCC");
   }
 
-  if (
-    differenceInSeconds(
-      cycleData[numberOfTCC].dateTime,
-      cycleData[0].dateTime
-    ) <
-    2 * 3600
-  ) {
-    alert("Invalid, More Than 2hr!");
-  }
 
   let exportData: ExportRow[] = [];
   for (let i = 0; i < cycleData.length - numberOfTCC * 3 - 1; i++) {
     const k = i;
-    let blockA = [cycleData[k].index, cycleData[k + numberOfTCC - 1].index];
+    let blockA = [cycleData[k].index, cycleData[k + numberOfTCC].index];
     let blockB = [
       cycleData[k + numberOfTCC].index,
-      cycleData[k + numberOfTCC * 2 - 1].index,
+      cycleData[k + numberOfTCC * 2].index,
     ];
     let blockC = [
       cycleData[k + numberOfTCC * 2].index,
-      cycleData[k + numberOfTCC * 3 - 1].index,
+      cycleData[k + numberOfTCC * 3].index,
     ];
 
     let row = createExportRow(
@@ -62,9 +73,9 @@ export function runSS1(
     row.blockB = `TCC ${k + numberOfTCC} to ${k + numberOfTCC * 2 - 1}`;
     row.blockC = `TCC ${k + numberOfTCC * 2} to ${k + numberOfTCC * 3 - 1}`;
 
-    row.blockATime = `${timeData[cycleData[k].index]} to ${timeData[cycleData[k + numberOfTCC - 1].index]}`;
-    row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${timeData[cycleData[k + numberOfTCC * 2 - 1].index]}`
-    row.blockCTime = `${timeData[cycleData[k + numberOfTCC * 2].index]} to ${timeData[cycleData[k + numberOfTCC * 3 - 1].index]}`;
+    row.blockATime = `${timeData[cycleData[k].index]} to ${timeData[cycleData[k + numberOfTCC].index]}`;
+    row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${timeData[cycleData[k + numberOfTCC * 2].index]}`
+    row.blockCTime = `${timeData[cycleData[k + numberOfTCC * 2].index]} to ${timeData[cycleData[k + numberOfTCC * 3].index]}`;
     exportData.push(row);
   }
 
@@ -137,7 +148,7 @@ function createExportRow(
   let row = new ExportRow();
 
   const startIndex = blockA[0];
-  const endIndex = blockC[1] + 1;
+  const endIndex = blockC[1];
 
   row.testPeriodUnfrozen = getTestPeriodAverage(
     rawData,
@@ -204,8 +215,8 @@ function createExportRow(
   );
 
   // convert to integer
-  const mediumA = Math.trunc(blockA[1] + blockA[0] / 2);
-  const mediumC = Math.trunc(blockC[1] + blockC[0] / 2);
+  const mediumA = Math.trunc((blockA[1] + blockA[0]) / 2);
+  const mediumC = Math.trunc((blockC[1] + blockC[0]) / 2);
   row.slopePower =
     Math.abs(
       getTestPeriodAverage(rawData, blockC[0], blockC[1], [config.power]) -
@@ -213,10 +224,10 @@ function createExportRow(
     ) /
     ((differenceInSeconds(timeData[mediumC], timeData[mediumA]) / 3600) *
       getTestPeriodAverage(rawData, blockA[0], blockC[1], [config.power]));
-
   row.permittedPowerSpread = getPermittedPowerSpread(row.testPeriodABC);
 
   row.valid = validate(row);
+  // console.log(row);
 
   return row;
 }

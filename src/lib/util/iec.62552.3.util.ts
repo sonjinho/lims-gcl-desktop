@@ -1,8 +1,8 @@
 import { selectedStore, type AnalyzeConfig } from "$lib/store/selectedStore";
 import { get } from "svelte/store";
-import { exportToExcel, type ExcelData } from "./excel.utils";
+import { type ExcelData } from "./excel.utils";
 import { runSS1 } from "./iec.62552.3.ss1.util";
-import { runSS2 } from "./iec.62552.3.ss2.util";
+import { runSS2, SS2Result } from "./iec.62552.3.ss2.util";
 import type { CycleData } from "./iec.util";
 
 export enum TemperatureIndex {
@@ -93,7 +93,7 @@ function detectCycleData(
 
   let cycleData = [];
   let count = 0;
-  let threshold = 20;
+  let threshold = powerData.reduce((p, c) => p + c, 0) / powerData.length;
 
   for (let i = 0; i < dateTimeData.length - 6; i++) {
     if (startDate.getTime() > dateTimeData[i].getTime()) {
@@ -104,61 +104,112 @@ function detectCycleData(
     }
     const currentPower = Number(powerData[i]) || 0; // 숫자가 아닌 경우 0으로 처리
     const nextPower2 = Number(powerData[i + 5]) || 0; // i+2 값
-    const comparePower1 = Number(powerData[i + 1]) || 0; // i+1 값
-    const comparePower2 = Number(powerData[i + 2]) || 0; // i+1 값
-    const comparePower3 = Number(powerData[i + 3]) || 0; // i+1 값
-    const comparePower4 = Number(powerData[i + 4]) || 0; // i+1 값
-
-    // 조건 1: powerData[i]와 powerData[i+1]의 차이가 5보다 작으면 스킵
-    if (currentPower > comparePower1 - 5) {
-      continue; // 스킵
-    }
-
-    if (currentPower > comparePower2 - 5) {
-      continue; // 스킵
-    }
-
-    if (currentPower > comparePower3 - 5) {
-      continue; // 스킵
-    }
-
-    if (currentPower > comparePower4 - 5) {
-      continue; // 스킵
-    }
-
-    if (currentPower > 3) {
-      continue;
-    }
-
-    if (currentPower < nextPower2 - threshold) {
-      // cycle
-      if (
-        set.has(i - 1) ||
-        set.has(i - 2) ||
-        set.has(i - 3) ||
-        set.has(i - 4) ||
-        set.has(i - 5)
-      ) {
+    if (currentPower + threshold < nextPower2) {
+      let maxIndex = findIndexWindow(powerData, i + 5, 5);
+      if (set.has(maxIndex)) {
         continue;
+      } else {
+        set.add(maxIndex);
+        cycleData.push({
+          index: maxIndex,
+          count: count++,
+          dateTime: dateTimeData[maxIndex],
+          max: -1,
+        });
       }
-      set.add(i);
-      cycleData.push({
-        index: i,
-        count: count++,
-        dateTime: dateTimeData[i],
-        max: -1,
-      });
     }
+    // const comparePower1 = Number(powerData[i + 1]) || 0; // i+1 값
+    // const comparePower2 = Number(powerData[i + 2]) || 0; // i+1 값
+    // const comparePower3 = Number(powerData[i + 3]) || 0; // i+1 값
+    // const comparePower4 = Number(powerData[i + 4]) || 0; // i+1 값
+
+    // // 조건 1: powerData[i]와 powerData[i+1]의 차이가 5보다 작으면 스킵
+    // if (currentPower > comparePower1 - 10) {
+    //   continue; // 스킵
+    // }
+
+    // if (currentPower > comparePower2 - 10) {
+    //   continue; // 스킵
+    // }
+
+    // if (currentPower > comparePower3 - 10) {
+    //   continue; // 스킵
+    // }
+
+    // if (currentPower > comparePower4 - 10) {
+    //   continue; // 스킵
+    // }
+
+    // // if (currentPower > 3) {
+    // //   continue;
+    // // }
+
+    // if (currentPower < nextPower2 - threshold) {
+    //   // cycle
+    //   if (
+    //     set.has(i - 1) ||
+    //     set.has(i - 2) ||
+    //     set.has(i - 3) ||
+    //     set.has(i - 4) ||
+    //     set.has(i - 5)
+    //   ) {
+    //     continue;
+    //   }
+    //   set.add(i);
+    //   cycleData.push({
+    //     index: i,
+    //     count: count++,
+    //     dateTime: dateTimeData[i],
+    //     max: -1,
+    //   });
+    // }
   }
   return cycleData;
+}
+
+function findIndexWindow(
+  powerData: number[],
+  index: number,
+  window: number
+) {
+  let max = powerData[index];
+  let maxIndex = index;
+  for (
+    let i = index - window;
+    i < index + window && i < powerData.length;
+    i++
+  ) {
+    if (max < powerData[i]) {
+      max = powerData[i];
+      maxIndex = i;
+    }
+  }
+
+  if (windowDifference(powerData, maxIndex, window)) {
+    for (let i = maxIndex - 1; i > maxIndex - window; i--) {
+      if ((powerData[maxIndex] - powerData[i]) > 5) {
+        maxIndex = i + 1;
+        break;
+      }
+    }
+  }
+  return maxIndex;
+}
+
+function windowDifference(powerData: number[], index: number, window: number) {
+  if ((powerData[index] - powerData[index - 1]) <= 3) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 export function IEC62552_ExportData_SS2(
   excelData: ExcelData,
   startDate: Date,
   endDate: Date,
-  numberOfTCC: number
-) {
+  numberOfTCC: number = 3
+):SS2Result | null{
   // ExcelData
   const rawData = excelData.slice(2);
   const config = get(selectedStore) as AnalyzeConfig;
@@ -182,41 +233,7 @@ export function IEC62552_ExportData_SS2(
   //@ts-ignore
   let cycleData = detectCycleData(dateTimeData, startDate, endDate, powerData);
 
-  let defrostRecoveryCycleIndex = [];
-
-  for (let i = 1; i < cycleData.length - 1; i++) {
-    let index = i - 1;
-    let maxIndex = 0;
-
-    const beforeCycle = cycleData[index];
-    const currentCycle = cycleData[i];
-    const nextCycle = cycleData[i + 1];
-
-    if (beforeCycle.max == -1) {
-      let max = -1;
-      for (let j = beforeCycle.index; j < currentCycle.index; j++) {
-        if (max < powerData[j]) {
-          max = powerData[j];
-        }
-      }
-      beforeCycle.max = max;
-    }
-
-    if (currentCycle.max == -1) {
-      let max = -1;
-      for (let j = currentCycle.index; j < nextCycle.index; j++) {
-        if (max < powerData[j]) {
-          max = powerData[j];
-          maxIndex = j;
-        }
-      }
-      currentCycle.max = max;
-    }
-
-    if (beforeCycle.max * 1.5 < currentCycle.max) {
-      defrostRecoveryCycleIndex.push(maxIndex);
-    }
-  }
+  // let defrostRecoveryCycleIndex = detectDefrostRecovery(powerData, cycleData);
 
   return runSS2(
     cycleData,
@@ -226,6 +243,25 @@ export function IEC62552_ExportData_SS2(
     evaluateUnfrozenIndex,
     config
   );
+}
+
+export function detectDefrostRecovery(powerData: number[], cycleData: CycleData[]) {
+  let threshold = powerData.reduce((p, c) => p + c, 0) / powerData.length;
+
+  let defrostRecoveryCycleIndex = [];
+
+  for (let i = 1; i < cycleData.length - 1; i++) {
+    const beforeCycle = cycleData[i - 1];
+    const currentCycle = cycleData[i];
+
+    if (
+      powerData[beforeCycle.index] + threshold <
+      powerData[currentCycle.index]
+    ) {
+      defrostRecoveryCycleIndex.push(currentCycle.index);
+    }
+  }
+  return defrostRecoveryCycleIndex;
 }
 
 function getEvaluateFrozenIndex(config: AnalyzeConfig) {

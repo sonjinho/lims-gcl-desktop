@@ -17,7 +17,7 @@
     if (ssType == 0) {
       IEC62552_ExportData(analyzeData, new Date(startTime), new Date(endTime), numberOfTCC);
     } else {
-      IEC62552_ExportData_SS2(analyzeData, new Date(startTime), new Date(endTime), numberOfTCC);
+      IEC62552_ExportData_SS2(analyzeData, new Date(startTime), new Date(endTime));
     }
   }
 

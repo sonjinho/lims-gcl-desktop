@@ -4,7 +4,8 @@ import {
   isTwoComaprtment,
   isValidTV,
 } from "../store/selectedStore";
-import { type ExcelData, exportSS2ToExcel } from "./excel.utils";
+import { type ExcelData } from "./excel.utils";
+import { detectDefrostRecovery } from "./iec.62552.3.util";
 import getTestPeriodAverage, {
   ConstantTemperature,
   type CycleData,
@@ -25,6 +26,29 @@ export interface SS2 {
   NominalDefrostRecoveryIndex: number;
 }
 
+export class Period {
+  start: number = 0;
+  end: number = 0;
+}
+export class PeriodBlock {
+  public periodD: Period = {start: 0, end: 0};
+  public periodF: Period = {start: 0, end: 0};
+  public periodX: Period = {start: 0, end: 0};
+  public periodY: Period = {start: 0, end: 0};
+  public defrostRecoveryIndex: number = 0;
+  public nominalDefrostRecoveryIndex: number = 0;
+  public lastPeriod: boolean = true;
+}
+
+export function runSS2_manual(
+  rawData: ExcelData,
+  timeData: Date[],
+  cycleData: CycleData[],
+  periodBlock: PeriodBlock[],  
+  evaluateFrozenIndex: number[],
+  config: AnalyzeConfig,
+) {}
+
 export function runSS2(
   cycleData: CycleData[],
   timeData: Date[],
@@ -32,9 +56,9 @@ export function runSS2(
   evaluateFrozenIndex: number[],
   evaluateUnfrozenIndex: number[],
   config: AnalyzeConfig
-): SS2 | null {
+): SS2Result | null {
   let powerData = rawData.map((row) => row[config.power] as number);
-  let defrostRecoveryCycleIndex = detectDefrostRecovery(cycleData, powerData);
+  let defrostRecoveryCycleIndex = detectDefrostRecovery(powerData, cycleData);
 
   if (defrostRecoveryCycleIndex.length < 1) {
     alert("No Defrost Recovery");
@@ -210,8 +234,6 @@ export function runSS2(
       ),
     };
 
-   
-
     const periodD: PeriodResult = calcPeriodResult(
       rawData,
       timeData,
@@ -248,7 +270,7 @@ export function runSS2(
         rawData,
         evaluateFrozenIndex
       ),
-    }
+    };
 
     let result: SS2Result = new SS2Result({
       periodX: periodX,
@@ -263,11 +285,12 @@ export function runSS2(
       PSS: PSS,
       PSS2: PSS2,
       config: config,
+      ss2: rtn,
     });
 
-    exportSS2ToExcel(result);
+    // exportSS2ToExcel(result);
 
-    return rtn;
+    return result;
   }
 
   return null;
@@ -276,7 +299,7 @@ export function runSS2(
 interface SS2ResultProps {
   periodX: PeriodResult;
   periodY: PeriodResult;
-  xyResult: PeriodExcelResult
+  xyResult: PeriodExcelResult;
   periodD: PeriodResult;
   periodF: PeriodResult;
   dfResult: PeriodExcelResult;
@@ -286,6 +309,7 @@ interface SS2ResultProps {
   PSS: number;
   PSS2: number;
   config: AnalyzeConfig;
+  ss2: SS2;
 }
 
 interface PeriodResultProps {
@@ -332,6 +356,7 @@ export class SS2Result {
   PSS: number;
   PSS2: number;
   config: AnalyzeConfig;
+  ss2: SS2;
 
   constructor(props: SS2ResultProps) {
     (this.periodX = props.periodX),
@@ -346,54 +371,55 @@ export class SS2Result {
     this.config = props.config;
     this.xyResult = props.xyResult;
     this.dfResult = props.dfResult;
+    this.ss2 = props.ss2;
   }
 }
 
-export function detectDefrostRecovery(
-  cycleData: CycleData[],
-  powerData: number[]
-): number[] {
-  cycleData.forEach((cycle) => {
-    cycle.max = -1;
-  });
-  let defrostRecoveryCycleIndex: number[] = [];
+// export function detectDefrostRecovery(
+//   cycleData: CycleData[],
+//   powerData: number[]
+// ): number[] {
+//   cycleData.forEach((cycle) => {
+//     cycle.max = -1;
+//   });
+//   let defrostRecoveryCycleIndex: number[] = [];
 
-  for (let i = 1; i < cycleData.length - 1; i++) {
-    let index = i - 1;
-    let maxIndex = 0;
+//   for (let i = 1; i < cycleData.length - 1; i++) {
+//     // let index = i - 1;
+//     // let maxIndex = 0;
 
-    const beforeCycle = cycleData[index];
-    const currentCycle = cycleData[i];
-    const nextCycle = cycleData[i + 1];
+//     // const beforeCycle = cycleData[index];
+//     // const currentCycle = cycleData[i];
+//     // const nextCycle = cycleData[i + 1];
 
-    if (beforeCycle.max == -1) {
-      let max = -1;
-      for (let j = beforeCycle.index; j < currentCycle.index; j++) {
-        if (max < powerData[j]) {
-          max = powerData[j];
-        }
-      }
-      beforeCycle.max = max;
-    }
+//     // if (beforeCycle.max == -1) {
+//     //   let max = -1;
+//     //   for (let j = beforeCycle.index; j < currentCycle.index; j++) {
+//     //     if (max < powerData[j]) {
+//     //       max = powerData[j];
+//     //     }
+//     //   }
+//     //   beforeCycle.max = max;
+//     // }
 
-    if (currentCycle.max == -1) {
-      let max = -1;
-      for (let j = currentCycle.index; j < nextCycle.index; j++) {
-        if (max < powerData[j]) {
-          max = powerData[j];
-          maxIndex = j;
-        }
-      }
-      currentCycle.max = max;
-    }
+//     // if (currentCycle.max == -1) {
+//     //   let max = -1;
+//     //   for (let j = currentCycle.index; j < nextCycle.index; j++) {
+//     //     if (max < powerData[j]) {
+//     //       max = powerData[j];
+//     //       maxIndex = j;
+//     //     }
+//     //   }
+//     //   currentCycle.max = max;
+//     // }
 
-    if (beforeCycle.max * 1.5 < currentCycle.max) {
-      defrostRecoveryCycleIndex.push(maxIndex);
-    }
-  }
-  console.log(defrostRecoveryCycleIndex);
-  return defrostRecoveryCycleIndex;
-}
+//     // if (beforeCycle.max * 1.5 < currentCycle.max) {
+//     //   defrostRecoveryCycleIndex.push(maxIndex);
+//     // }
+//   }
+//   // console.log(defrostRecoveryCycleIndex);
+//   return defrostRecoveryCycleIndex;
+// }
 function calcPeriodResult(
   rawData: ExcelData,
   timeData: Date[],
@@ -576,14 +602,18 @@ function getPeriodXY(
 
   for (let i = initialNumberOfTCC; i < 10; i++) {
     numberOfTCC = i;
-    if (validatePeriod(cycleData, timeData, firstDefrost, numberOfTCC)) {
-      periodX = firstDefrost - numberOfTCC;
+    const shift = 1;
+    if (validatePeriod(cycleData, timeData, firstDefrost - 1, numberOfTCC)) {
+      periodX = firstDefrost - numberOfTCC - shift;
     } else {
       continue;
     }
 
-    if (validatePeriod(cycleData, timeData, secondDefrost, numberOfTCC)) {
-      periodY = secondDefrost - numberOfTCC;
+    // if (differenceInSeconds(timeData[secondDefrost], timeData[firstDefrost]) > 48 * 3600) {
+
+    // }
+    if (validatePeriod(cycleData, timeData, secondDefrost - 1, numberOfTCC)) {
+      periodY = secondDefrost - numberOfTCC - shift;
     } else {
       continue;
     }
@@ -596,8 +626,34 @@ function getPeriodXY(
     let xBlock = [periodX, firstDefrost - 1];
     let yBlock = [periodY, secondDefrost - 1];
 
-    xBlockIndex = [cycleData[xBlock[0]].index, cycleData[xBlock[1] + 1].index];
-    yBlockIndex = [cycleData[yBlock[0]].index, cycleData[yBlock[1] + 1].index];
+    xBlockIndex = [cycleData[xBlock[0]].index, cycleData[xBlock[1]].index];
+    yBlockIndex = [cycleData[yBlock[0]].index, cycleData[yBlock[1]].index];
+
+    if (differenceInSeconds(timeData[secondDefrost], timeData[firstDefrost]) < 48 * 3600) {
+      yBlockIndex[1] = cycleData[secondDefrost].index;
+    }
+
+    // if (differenceInSeconds(timeData[yBlockIndex[1]], timeData[xBlockIndex[1]]) > 48 * 3600) {
+    //   // handle edge case
+    //   for (let i = 0; i < 100; i++) {
+    //     yBlock = [yBlock[0] - 1, yBlock[1] - 1];
+    //     if (
+    //       differenceInSeconds(
+    //         cycleData[yBlock[1]].dateTime,
+    //         cycleData[xBlock[1]].dateTime
+    //       ) <
+    //         48 * 3600 &&
+    //       validatePeriod(cycleData, timeData, yBlock[1], numberOfTCC)
+    //     ) {
+    //       yBlockIndex = [
+    //         cycleData[yBlock[0]].index,
+    //         cycleData[yBlock[1] + 1].index,
+    //       ];
+    //       yBlock = []
+    //       break;
+    //     }
+    //   }
+    // }
 
     if (!validateDuration(xBlockIndex, yBlockIndex, timeData)) {
       console.log("Invalid Duration!");
@@ -635,16 +691,6 @@ function getPeriodXY(
   return [periodXBlock, periodYBlock, [numberOfTCC]];
 }
 
-function resultPeriodDF(
-  firstDefrost: number,
-  secondDefrost: number,
-  cycleData: CycleData[],
-  timeData: Date[],
-  rawData: ExcelData,
-  evaluateUnfrozenIndex: number[],
-  evaluateFrozenIndex: number[],
-  config: AnalyzeConfig
-) {}
 function getPeriodDF(
   firstDefrost: number,
   secondDefrost: number,
@@ -928,7 +974,7 @@ function validateDuration(
   const ratio =
     differenceInSeconds(timeData[xBlcok[1]], timeData[xBlcok[0]]) /
     differenceInSeconds(timeData[yBlock[1]], timeData[yBlock[0]]);
-  console.log("Duration: ",ratio);
+  console.log("Duration: ", ratio);
   return ratio >= 0.8 && ratio <= 1.25;
 }
 
@@ -1069,17 +1115,16 @@ function findPeriodD(
   let periodDEndCycle = 0;
   for (let i = 0; i < cycleData.length; i++) {
     if (cycleData[i].index > nominalIndex) {
-      console.log("Invalid");
+      periodDEndCycle = i - 1;
       break;
     }
 
-    if (
-      differenceInSeconds(
-        timeData[nominalIndex],
-        timeData[cycleData[i].index]
-      ) <
-      3 * 3600
-    ) {
+    let length = differenceInSeconds(
+      timeData[nominalIndex],
+      timeData[cycleData[i].index]
+    );
+    console.log("Time", length / 3600);
+    if (length < 3 * 3600) {
       if (i > 1) {
         periodDEndCycle = i - 1;
       } else {
@@ -1088,6 +1133,7 @@ function findPeriodD(
       break;
     }
   }
+  console.log(periodDEndCycle);
   let periodDStartCycle = periodDEndCycle - numberOfTCC;
   if (periodDStartCycle < 0) {
     return [];
@@ -1114,6 +1160,9 @@ function findPeriodF(
   nominalIndex: number,
   numberOfTCC: number = 3
 ) {
+  if (numberOfTCC < 3) {
+    numberOfTCC = 3;
+  }
   let periodFStartCycle = 0;
   for (let i = 0; i < cycleData.length; i++) {
     if (cycleData[i].index < nominalIndex) continue;
@@ -1121,7 +1170,8 @@ function findPeriodF(
       differenceInSeconds(
         timeData[cycleData[i].index],
         timeData[nominalIndex]
-      ) > 3600
+      ) >
+      3 * 3600
     ) {
       periodFStartCycle = i;
       break;
@@ -1137,7 +1187,8 @@ function findPeriodF(
       differenceInSeconds(
         timeData[cycleData[i].index],
         timeData[cycleData[periodFStartCycle].index]
-      )
+      ) >
+      3 * 3600
     ) {
       periodFEndCycle = i;
       break;
@@ -1146,6 +1197,7 @@ function findPeriodF(
 
   return [cycleData[periodFStartCycle].index, cycleData[periodFEndCycle].index];
 }
+
 function getTSS2i(
   rawData: ExcelData,
   periodDBlock: number[],
