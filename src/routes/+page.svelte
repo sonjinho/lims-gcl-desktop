@@ -1,6 +1,5 @@
 <script>
   import ExcelResultView from "$lib/components/ExcelResultView.svelte";
-  import { itemsStore } from "$lib/store/itemsStore";
   import { selectedStore } from "$lib/store/selectedStore";
   import { loadAll, loadById, SS1Config } from "$lib/util/db.util";
   import openExcelFile, { findExcelFile } from "$lib/util/excel.utils";
@@ -20,7 +19,6 @@
       }));
     }
     items.unshift({ value: -1, name: "New Config" });
-    itemsStore.set(items);
   });
 
   const handleOpenFile = async () => {
@@ -46,7 +44,7 @@
   {/if}
   {#if items.length > 0}
     <div>
-      <Select bind:value={configId} items={$itemsStore} onchange={handleOnChange} />
+      <Select bind:value={configId} items={items} onchange={handleOnChange} />
     </div>
   {/if}
 
