@@ -1,18 +1,26 @@
 <script>
   import { selectedStore } from "$lib/store/selectedStore";
-  import { exportSS2ToExcel, exportToExcel } from "$lib/util/excel.utils";
-  import { PeriodBlock } from "$lib/util/iec.62552.3.ss2.util";
-  import IEC62552_ExportData, {
-    getCycleData,
-    IEC62552_ExportData_SS2,
-  } from "$lib/util/iec.62552.3.util";
-  import { convertToChartData } from "$lib/util/iec.chart.util";
+  import {
+    exportSS1ToExcel,
+    exportSS2ToExcelPeriodBlock,
+  } from "$lib/util/excel.utils";
+  import { runSS1_manual } from "$lib/util/iec.62552.3.ss1.util";
+  import {
+    getAutoDefrostRecoveryPeriod,
+    PeriodBlock,
+  } from "$lib/util/iec.62552.3.ss2.util";
+  import { getCycleData } from "$lib/util/iec.62552.3.util";
+  import {
+    convertToChartData,
+    convertToTimeFormat,
+  } from "$lib/util/iec.chart.util";
   import * as echarts from "echarts";
   import {
     Button,
     ButtonGroup,
     Input,
     Label,
+    Radio,
     Select,
     Table,
     TableBody,
@@ -24,6 +32,7 @@
   } from "flowbite-svelte";
   import { CircleMinusSolid, CirclePlusSolid } from "flowbite-svelte-icons";
   import { onDestroy, onMount } from "svelte";
+  import EditChartModal from "./EditChartModal.svelte";
 
   export let data;
   let chartContainer;
@@ -50,14 +59,17 @@
       pad(date.getMinutes())
     );
   }
+
+  let selectedIndex = 0;
   // set default 0
-  let mode = 1;
+  let mode = 0;
   let ssType = 0;
   let startTime = minDateStr;
   let endTime = maxDateStr;
   let numberOfTCC = 3;
-  let editTarget = 1;
-
+  let editTarget = 0;
+  let open = false;
+  let rawData = [];
   let cycleData = [];
   let periodBlocks = [new PeriodBlock()];
   let timeData = [];
@@ -77,34 +89,20 @@
   function exportData() {
     console.log(ssType, startTime, endTime, numberOfTCC);
     if (ssType == 0) {
-      exportRow = IEC62552_ExportData(
-        data,
-        new Date(startTime),
-        new Date(endTime),
+      const startDate = new Date(startTime);
+      const endDate = new Date(endTime);
+      exportSS1ToExcel(
+        rawData,
+        cycleData.filter(
+          (cycle) =>
+            startDate.getTime() <= cycle.dateTime.getTime() &&
+            cycle.dateTime.getTime() <= endDate.getTime()
+        ),
+        timeData,
         numberOfTCC
       );
-      exportToExcel(exportRow);
     } else {
-      let ss2Result = IEC62552_ExportData_SS2(
-        data,
-        new Date(startTime),
-        new Date(endTime)
-      );
-      if (ss2Result) {
-        exportSS2ToExcel(ss2Result);
-      }
-    }
-  }
-  function exportDataToExcel() {
-    if (exportRow.length > 0) {
-      // exportToExcel(
-      //   IEC62552_ExportData(
-      //     data,
-      //     new Date(startTime),
-      //     new Date(endTime),
-      //     numberOfTCC
-      //   )
-      // );
+      exportSS2ToExcelPeriodBlock(rawData, cycleData, periodBlocks);
     }
   }
 
@@ -116,9 +114,6 @@
     }
 
     await updateChart();
-
-
-
   }
 
   async function updateChart() {
@@ -130,6 +125,7 @@
       chartInstance = echarts.init(chartContainer);
     }
 
+    console.log(periodBlocks);
     const chartOption = await new Promise((resolve) => {
       setTimeout(() => {
         const result = convertToChartData(
@@ -137,13 +133,27 @@
           startTime,
           endTime,
           cycleData,
-          ssType
+          periodBlocks,
+          ssType,
+          selectedIndex
         );
         resolve(result);
       }, 0);
     });
     console.log("Render Chart");
     chartInstance.setOption(chartOption, true);
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    exportRow = runSS1_manual(
+      rawData,
+      timeData,
+      cycleData.filter(
+        (cycle) =>
+          startDate.getTime() <= cycle.dateTime.getTime() &&
+          cycle.dateTime.getTime() <= endDate.getTime()
+      ),
+      numberOfTCC
+    );
     isChartLoaded = true;
   }
 
@@ -155,7 +165,7 @@
 
   onMount(async () => {
     console.log(startTime, endTime);
-    const rawData = data.slice(2);
+    rawData = data.slice(2);
 
     cycleData = getCycleData(
       rawData,
@@ -165,6 +175,8 @@
     );
 
     timeData = rawData.map((row) => new Date(row[config.xAxis]));
+
+    periodBlocks = getAutoDefrostRecoveryPeriod(rawData, cycleData, config);
     console.log(cycleData);
     if (data && chartContainer) {
       isChartLoaded = false;
@@ -181,14 +193,18 @@
   });
 
   function addRow(currentIndex) {
-    const newRow = { index: cycleData[currentIndex].index + 1, count: 0 };
+    const newRow = {
+      index: cycleData[currentIndex].index,
+      count: cycleData[currentIndex].count + 1,
+    };
     // 현재 인덱스 다음에 새로운 행 삽입
     cycleData = [
       ...cycleData.slice(0, currentIndex + 1),
       newRow,
       ...cycleData.slice(currentIndex + 1).map((row) => ({
         ...row,
-        index: row.index + 1, // 이후 행들의 index를 1씩 증가
+        index: row.index, // 이후 행들의 index를 1씩 증가
+        count: row.count + 1
       })),
     ];
   }
@@ -198,7 +214,7 @@
       .filter((_, i) => i !== index) // 해당 인덱스의 행 제거
       .map((row) => ({
         ...row,
-        index: row.index > cycleData[index].index ? row.index - 1 : row.index, // 삭제된 행 이후의 index를 1씩 감소
+        count: row.count > cycleData[index].count ? row.count - 1 : row.count, // 삭제된 행 이후의 index를 1씩 감소
       }));
   }
 
@@ -210,12 +226,12 @@
       periodY: { start: 0, end: 0 },
       defrostRecoveryIndex: 0,
       nominalDefrostRecoveryIndex: 0,
-      lastPeriod: false
+      lastPeriod: false,
     };
     periodBlocks = [
       ...periodBlocks.slice(0, index + 1),
       newBlock,
-      ...periodBlocks.slice(index + 1)
+      ...periodBlocks.slice(index + 1),
     ];
   }
 
@@ -225,9 +241,22 @@
       periodBlocks = periodBlocks.filter((_, i) => i !== index);
     }
   }
-  
+
+  function handleModal() {
+    open=false;
+    updateChart();
+  }
 </script>
 
+<div class="flex justify-end">
+  <ButtonGroup>
+    <Button
+      onclick={() => {
+        open = true;
+      }}>Edit chart</Button
+    >
+  </ButtonGroup>
+</div>
 <div class="flex flex-wrap items-center justify-end gap-4 p-4">
   <div class="flex flex-col">
     <Label for="mode" class="text-sm font-semibold">
@@ -299,7 +328,20 @@
     </div>
   {/if}
 </div>
-
+<div class="flex flex-wrap items-center justify-end gap-4 p-4">
+  <div class="flex justify-end">
+    <Input type="number" step="1" bind:value={selectedIndex} />
+  </div>
+  <div class="flex justify-end">
+    <ButtonGroup>
+      <Button
+        onclick={() => {
+          updateChart();
+        }}>Show</Button
+      >
+    </ButtonGroup>
+  </div>
+</div>
 {#if mode == 1}
   <div class="flex flex-wrap items-center justify-end gap-4 p-4">
     <div class="flex flex-col">
@@ -318,10 +360,14 @@
       />
     </div>
     <div class="flex flex-col">
-      <Button onclick={()=>{submitManual();}}>Submit</Button>
+      <Button
+        onclick={() => {
+          submitManual();
+        }}>Submit</Button
+      >
     </div>
   </div>
-  {#if editTarget == 0}
+  {#if editTarget == 0 && timeData.length > 0}
     <Table>
       <TableHead>
         <TableHeadCell>
@@ -337,13 +383,21 @@
         {#each cycleData as cycle, index}
           <TableBodyRow>
             <TableBodyCell>
-              <Input type="number" bind:value={cycle.index} step="1" />
+              <Input
+                type="number"
+                bind:value={cycle.index}
+                step="1"
+                onchange={() => {
+                  cycle.dateTime = timeData[cycle.index];
+                  cycle.count = index;
+                }}
+              />
             </TableBodyCell>
             <TableBodyCell>
               <p>{index}</p>
             </TableBodyCell>
             <TableBodyCell>
-              <p>{timeData[cycle.index]?.toISOString() ?? "N/A"}</p>
+              <p>{convertToTimeFormat(timeData[cycle.index])}</p>
             </TableBodyCell>
             <TableBodyCell>
               <ButtonGroup>
@@ -359,15 +413,35 @@
         {/each}
       </TableBody>
     </Table>
-  {:else if editTarget == 1}
+  {:else if editTarget == 1 && periodBlocks.length > 0 && timeData.length > 0}
     {#each periodBlocks as block, index}
-    <h3 class="font-semibold">Block {index + 1}</h3>
-    <div class="flex justify-end">
-      <ButtonGroup>
-        <Button onclick={()=>{addPeriodBlock(index)}}><CirclePlusSolid/></Button>
-        <Button onclick={()=>{deletePeriodBlock(index)}}><CircleMinusSolid/></Button>
-      </ButtonGroup>
-    </div>
+      <h3 class="font-semibold">
+        <Radio
+          name="select"
+          onclick={() => {
+            periodBlocks.forEach((periodBlock, i) => {
+              periodBlock.checked = i == index;
+            });
+          }}
+          bind:checked={block.checked}
+        >
+          Block {index + 1}</Radio
+        >
+      </h3>
+      <div class="flex justify-end">
+        <ButtonGroup>
+          <Button
+            onclick={() => {
+              addPeriodBlock(index);
+            }}><CirclePlusSolid /></Button
+          >
+          <Button
+            onclick={() => {
+              deletePeriodBlock(index);
+            }}><CircleMinusSolid /></Button
+          >
+        </ButtonGroup>
+      </div>
       <Table>
         <TableHead>
           <TableHeadCell>Target</TableHeadCell>
@@ -384,7 +458,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodX.start]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodX.start])}
               </p></TableBodyCell
             >
             <TableBodyCell>
@@ -392,7 +466,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodX.end]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodX.end])}
               </p></TableBodyCell
             >
           </TableBodyRow>
@@ -403,7 +477,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodY.start]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodY.start])}
               </p></TableBodyCell
             >
             <TableBodyCell>
@@ -411,7 +485,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodY.end]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodY.end])}
               </p></TableBodyCell
             >
           </TableBodyRow>
@@ -422,7 +496,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodD.start]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodD.start])}
               </p></TableBodyCell
             >
             <TableBodyCell>
@@ -430,7 +504,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodD.end]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodD.end])}
               </p></TableBodyCell
             >
           </TableBodyRow>
@@ -441,7 +515,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodF.start]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodF.start])}
               </p></TableBodyCell
             >
             <TableBodyCell>
@@ -449,7 +523,7 @@
             </TableBodyCell>
             <TableBodyCell
               ><p>
-                {timeData[block.periodF.end]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.periodF.end])}
               </p></TableBodyCell
             >
           </TableBodyRow>
@@ -457,7 +531,7 @@
             <TableBodyCell>
               <Label>
                 Last Defrost
-                <Toggle bind:value={block.lastPeriod} class="my-4"/>
+                <Toggle bind:checked={block.lastPeriod} class="my-4" />
               </Label>
             </TableBodyCell>
             <TableBodyCell>
@@ -472,7 +546,7 @@
             </TableBodyCell>
             <TableBodyCell>
               <p>
-                {timeData[block.defrostRecoveryIndex]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(timeData[block.defrostRecoveryIndex])}
               </p>
             </TableBodyCell>
             <TableBodyCell>
@@ -487,10 +561,11 @@
             </TableBodyCell>
             <TableBodyCell>
               <p>
-                {timeData[block.nominalDefrostRecoveryIndex]?.toISOString() ?? "N/A"}
+                {convertToTimeFormat(
+                  timeData[block.nominalDefrostRecoveryIndex]
+                )}
               </p>
             </TableBodyCell>
-            
           </TableBodyRow>
         </TableBody>
       </Table>
@@ -498,13 +573,6 @@
   {/if}
 {/if}
 {#if exportRow.length > 0 && ssType == 0}
-  <div class="flex flex-wrap items-center justify-end gap-4 p-4">
-    <div class="flex flex-col justify-center items-center mt-5">
-      <ButtonGroup>
-        <Button onclick={exportDataToExcel}>Export Date</Button>
-      </ButtonGroup>
-    </div>
-  </div>
   <div>
     <Table>
       <TableHead>
@@ -554,3 +622,4 @@
     </Table>
   </div>
 {/if}
+<EditChartModal bind:open on:event={handleModal}/>

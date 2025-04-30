@@ -3,6 +3,7 @@ import {
   type AnalyzeConfig,
   isTwoComaprtment,
   isValidTV,
+  selectedStore,
 } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
 import getTestPeriodAverage, {
@@ -11,16 +12,19 @@ import getTestPeriodAverage, {
   getConstValue,
   type Tdf,
 } from "./iec.util";
+import { get } from 'svelte/store';
+import { getEvaluateFrozenIndex, getEvaluateUnfrozenIndex } from './iec.62552.3.util';
 
 export function runSS1_manual(
   rawData: ExcelData,
   timeData: Date[],
   cycleData: CycleData[],
-  evaluateFrozenIndex: number[],
-  evaluateUnfrozenIndex: number[],
   numberOfTCC: number,
-  config: AnalyzeConfig,
 ): ExportRow[] {
+  let config = get(selectedStore);
+  let evaluateFrozenIndex = getEvaluateFrozenIndex(config);
+  let evaluateUnfrozenIndex = getEvaluateUnfrozenIndex(config);
+
   return runSS1(
     cycleData,
     timeData,
@@ -69,9 +73,9 @@ export function runSS1(
       evaluateUnfrozenIndex,
       config
     );
-    row.blockA = `TCC ${k} to ${k + numberOfTCC - 1}`;
-    row.blockB = `TCC ${k + numberOfTCC} to ${k + numberOfTCC * 2 - 1}`;
-    row.blockC = `TCC ${k + numberOfTCC * 2} to ${k + numberOfTCC * 3 - 1}`;
+    row.blockA = `TCC ${cycleData[k].count} to ${cycleData[k + numberOfTCC].count - 1}`;
+    row.blockB = `TCC ${cycleData[k + numberOfTCC].count} to ${cycleData[k + numberOfTCC * 2].count - 1}`;
+    row.blockC = `TCC ${cycleData[k + numberOfTCC * 2].count} to ${cycleData[k + numberOfTCC * 3].count - 1}`;
 
     row.blockATime = `${timeData[cycleData[k].index]} to ${timeData[cycleData[k + numberOfTCC].index]}`;
     row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${timeData[cycleData[k + numberOfTCC * 2].index]}`
@@ -293,9 +297,9 @@ function getSpreadPower(
   );
 
   return (
-    Math.max(blockAPower, blockBPower, blockCPower) /
+    (Math.max(blockAPower, blockBPower, blockCPower) - Math.min(blockAPower,blockBPower, blockCPower)) /
     getTestPeriodAverage(rawData, blockA[0], blockC[1], powerIndex)
-  );
+  ) * 100;
 }
 
 function getSlope(
@@ -597,7 +601,7 @@ export function transformDataForExcel(
   });
 }
 
-class ExportRow {
+export class ExportRow {
   blockA: string;
   blockB: string;
   blockC: string;
@@ -678,4 +682,10 @@ function validate(row: ExportRow): boolean {
   if (row.slopePower >= 0.025) return false;
 
   return true;
+}
+
+function toArray(row: ExportRow): any[] {
+  return [
+    `${row.blockA}`
+  ]
 }

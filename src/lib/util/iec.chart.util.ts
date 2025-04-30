@@ -1,13 +1,10 @@
 import { get } from "svelte/store";
-import { selectedStore } from "../store/selectedStore";
+import { isValidTV, selectedStore } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
-import type { SS2Result } from "./iec.62552.3.ss2.util";
-import IEC62552_ExportData, {
-  detectDefrostRecovery,
-  getCycleData,
-  IEC62552_ExportData_SS2,
-} from "./iec.62552.3.util";
-import type { CycleData } from "./iec.util";
+import { runSS2_manual, type PeriodBlock } from "./iec.62552.3.ss2.util";
+import { detectDefrostRecovery } from "./iec.62552.3.util";
+import type { CycleData, Tdf } from "./iec.util";
+import { chartYAxisStore } from '$lib/store/chartYAxisStore';
 
 const COLORS = [
   "rgb(75, 192, 192)",
@@ -71,27 +68,182 @@ const getColor = (index: number): string => {
   return COLORS[index % COLORS.length];
 };
 
-export function convertToChartDataManual(
-  
-) {
-
+interface ChartSS2ResultProps {
+  xDuration: number;
+  yDuration: number;
+  xTCC: number;
+  yTCC: number;
+  xyRatio: number;
+  xUnfrozenTemp: number;
+  yUnfrozenTemp: number;
+  xySpreadUnfrozenTemp: number;
+  xFrozenTemp: number;
+  yFrozenTemp: number;
+  xySpreadFrozenTemp: number;
+  xPower: number;
+  yPower: number;
+  xySpreadPowerPercent: number;
+  xySpreadPowerWatt: number;
+  xyEnergy: number;
+  dDuration: number;
+  fDuration: number;
+  dTCC: number;
+  fTCC: number;
+  dfRatio: number;
+  dNominalDuration: number;
+  fNominalDuration: number;
+  dUnfrozenTemp: number;
+  fUnfrozenTemp: number;
+  dfSpreadUnfrozenTemp: number;
+  dFrozenTemp: number;
+  fFrozenTemp: number;
+  dfSpreadFrozenTemp: number;
+  dPower: number;
+  fPower: number;
+  dfSpreadPowerPercent: number;
+  dfSpreadPowerWatt: number;
+  Edf: number;
+  Thdf: Tdf;
+  PSS2: number;
+  TSS2: Tdf;
+  Tat: number;
+  Tam: number;
+  c1: number;
+  c2: number;
+  deltaCop: number;
+  PSS: number;
 }
+
+export class ChartSS2Result {
+  xDuration: number;
+  yDuration: number;
+  xTCC: number;
+  yTCC: number;
+  xyRatio: number;
+  xUnfrozenTemp: number;
+  yUnfrozenTemp: number;
+  xySpreadUnfrozenTemp: number;
+  xFrozenTemp: number;
+  yFrozenTemp: number;
+  xySpreadFrozenTemp: number;
+  xPower: number;
+  yPower: number;
+  xySpreadPowerPercent: number;
+  xySpreadPowerWatt: number;
+  xyEnergy: number;
+  dDuration: number;
+  fDuration: number;
+  dTCC: number;
+  fTCC: number;
+  dfRatio: number;
+  dNominalDuration: number;
+  fNominalDuration: number;
+  dUnfrozenTemp: number;
+  fUnfrozenTemp: number;
+  dfSpreadUnfrozenTemp: number;
+  dFrozenTemp: number;
+  fFrozenTemp: number;
+  dfSpreadFrozenTemp: number;
+  dPower: number;
+  fPower: number;
+  dfSpreadPowerPercent: number;
+  dfSpreadPowerWatt: number;
+  Edf: number;
+  Thdf: Tdf;
+  PSS2: number;
+  TSS2: Tdf;
+  Tat: number;
+  Tam: number;
+  c1: number;
+  c2: number;
+  deltaCop: number;
+  PSS: number;
+
+  constructor(props: ChartSS2ResultProps) {
+    this.xDuration = props.xDuration;
+    this.yDuration = props.yDuration;
+    this.xTCC = props.xTCC;
+    this.yTCC = props.yTCC;
+    this.xyRatio = props.xyRatio;
+    this.xUnfrozenTemp = props.xUnfrozenTemp;
+    this.yUnfrozenTemp = props.yUnfrozenTemp;
+    this.xySpreadUnfrozenTemp = props.xySpreadUnfrozenTemp;
+    this.xFrozenTemp = props.xFrozenTemp;
+    this.yFrozenTemp = props.yFrozenTemp;
+    this.xySpreadFrozenTemp = props.xySpreadFrozenTemp;
+    this.xPower = props.xPower;
+    this.yPower = props.yPower;
+    this.xySpreadPowerPercent = props.xySpreadPowerPercent;
+    this.xySpreadPowerWatt = props.xySpreadPowerWatt;
+    this.xyEnergy = props.xyEnergy;
+    this.dDuration = props.dDuration;
+    this.fDuration = props.fDuration;
+    this.dTCC = props.dTCC;
+    this.fTCC = props.fTCC;
+    this.dfRatio = props.dfRatio;
+    this.dNominalDuration = props.dNominalDuration;
+    this.fNominalDuration = props.fNominalDuration;
+    this.dUnfrozenTemp = props.dUnfrozenTemp;
+    this.fUnfrozenTemp = props.fUnfrozenTemp;
+    this.dfSpreadUnfrozenTemp = props.dfSpreadUnfrozenTemp;
+    this.dFrozenTemp = props.dFrozenTemp;
+    this.fFrozenTemp = props.fFrozenTemp;
+    this.dfSpreadFrozenTemp = props.dfSpreadFrozenTemp;
+    this.dPower = props.dPower;
+    this.fPower = props.fPower;
+    this.dfSpreadPowerPercent = props.dfSpreadPowerPercent;
+    this.dfSpreadPowerWatt = props.dfSpreadPowerWatt;
+    this.Edf = props.Edf;
+    this.Thdf = props.Thdf;
+    this.PSS2 = props.PSS2;
+    this.TSS2 = props.TSS2;
+    this.Tat = props.Tat;
+    this.Tam = props.Tam;
+    this.c1 = props.c1;
+    this.c2 = props.c2;
+    this.deltaCop = props.deltaCop;
+    this.PSS = props.PSS;
+  }
+}
+
 export function convertToChartData(
   excelData: ExcelData,
   startTime: string,
   endTime: string,
   cycleData: CycleData[],
-  ssType: number = 0
+  periodBlocks: PeriodBlock[],
+  ssType: number = 0,
+  selectedIndex: number = -1
 ) {
-
-
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
   const config = get(selectedStore);
+  const yAxisStore = get(chartYAxisStore);
   const headers = excelData[0].map(String);
   const units = excelData[1].map(String);
-  const unitMap: Record<string, string> = {};
-  headers.forEach((header, index) => {
-    unitMap[header] = units[index];
-  });
+  // complete   this
+  const yAxisMap: Record<string, number> = Object.fromEntries(
+    yAxisStore.series.map(({ header, yAxis }) => [header, yAxis])
+  );
+
+
+  const yAxis = yAxisStore.yAxis.map((axis, index) => {
+    return {
+      type: "value",
+      name: axis.name,
+      position: index == 0 ? "left" : "right",
+      min: axis.min,
+      max: axis.max,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          color: getColor(axis.color)
+        }
+      },
+      offset: index == 0 ? 0 : 80 * (index - 1),
+    }
+  })
+    
 
   const POWER_NAME = excelData[0][config.power] as string;
   const rawData = excelData.slice(2);
@@ -103,16 +255,21 @@ export function convertToChartData(
 
   const midngihtLines = getMidnightLines(xAxisData);
 
-  let series = seriesData(headers, rawData, xAxisData, unitMap);
+  let series = seriesData(headers, rawData, xAxisData, yAxisMap);
   const baselineSeries = getBaseLineSeries(midngihtLines);
-  const cycleDashedSeries = getCycleDashedData(cycleData, xAxisData);
-  const defrostDashedSeries = getDefrostDashedData(
+  const cycleDashedSeries = getCycleDashedData(
     cycleData,
-    powerData,
-    xAxisData
+    xAxisData,
+    startDate,
+    endDate
+  );
+  const defrostDashedSeries = getDefrostRecoveryData(
+    periodBlocks.map((block) => block.defrostRecoveryIndex),
+    xAxisData,
+    10
   );
 
-  console.log(defrostDashedSeries);
+  // console.log(defrostDashedSeries);
 
   let chartSeries: any[] = [];
   let periodXTooltip = "";
@@ -120,67 +277,75 @@ export function convertToChartData(
   let periodDTooltip = "";
   let periodFTooltip = "";
 
-  if (ssType == 1) {
-    const result: SS2Result | null = IEC62552_ExportData_SS2(
-      excelData,
-      new Date(startTime),
-      new Date(endTime)
+  if (periodBlocks.length > 0) {
+    const nonLastBlock = periodBlocks.filter(
+      (periodBlock) => periodBlock.lastPeriod == false && periodBlock.checked
     );
-    if (result) {
-      const periodX = drawSinglePeriodData(
-        SERIES_NAME.PERIOD_X,
-        xAxisData,
-        result.ss2.PeriodX,
-        6
-      );
 
-      periodXTooltip += `TimeDuration: ${result.periodD.duration}h <br/>`;
-      periodXTooltip += `Power: ${result.periodD.power}W <br/>`;
-      periodXTooltip += `UnFrozen Temperature: ${result.periodD.unfrozenTemp}℃ <br/>}`;
-      periodXTooltip += `Frozen Temperature: ${result.periodD.frozenTemp}℃ <br/>`;
+    let chartSS2Result = runSS2_manual(rawData, cycleData, nonLastBlock);
+    const periodX = drawSinglePeriodData(
+      SERIES_NAME.PERIOD_X,
+      xAxisData,
+      nonLastBlock
+        .map((periodBlock) => periodBlock.periodX)
+        .map((period) => [period.start, period.end])
+        .flat(),
+      6
+    );
 
-      const periodY = drawSinglePeriodData(
-        SERIES_NAME.PERIOD_Y,
-        xAxisData,
-        result.ss2.PeriodY,
-        6
-      );
-      periodYTooltip += `TimeDuration: ${result.periodF.duration}h <br/>`;
-      periodYTooltip += `Power: ${result.periodF.power}W <br/>`;
-      periodYTooltip += `UnFrozen Temperature: ${result.periodF.unfrozenTemp}℃ <br/>`;
-      periodYTooltip += `Frozen Temperature: ${result.periodF.frozenTemp}℃ <br/>`;
+    const periodY = drawSinglePeriodData(
+      SERIES_NAME.PERIOD_Y,
+      xAxisData,
+      nonLastBlock
+        .map((periodBlock) => periodBlock.periodY)
+        .map((period) => [period.start, period.end])
+        .flat(),
+      6
+    );
 
-      const periodD = drawSinglePeriodData(
-        SERIES_NAME.PERIOD_D,
-        xAxisData,
-        result.ss2.PeriodD,
-        7
-      );
-      periodDTooltip += `TimeDuration: ${result.periodX.duration}h <br/>`;
-      periodDTooltip += `&Delta;Edf: ${result.Edf} Wh <br/>`;
-      periodDTooltip += `&Delta;Unfrozen Thdf: ${result.Thdf.evaluateFrozen} <br/>`;
-      periodDTooltip += `&Delta;Frozen Thdf: ${result.Thdf.evaluateFrozen} <br/>`;
+    const periodD = drawSinglePeriodData(
+      SERIES_NAME.PERIOD_D,
+      xAxisData,
+      nonLastBlock
+        .map((periodBlock) => periodBlock.periodD)
+        .map((period) => [period.start, period.end])
+        .flat(),
+      7
+    );
 
-      const periodF = drawSinglePeriodData(
-        SERIES_NAME.PERIOD_F,
-        xAxisData,
-        result.ss2.PeriodF,
-        7
-      );
-      periodFTooltip += `TimeDuration: ${result.periodY.duration}h <br/>`;
-      periodFTooltip += `Power: ${result.periodY.power}W <br/>`
+    const periodF = drawSinglePeriodData(
+      SERIES_NAME.PERIOD_F,
+      xAxisData,
+      nonLastBlock
+        .map((periodBlock) => periodBlock.periodF)
+        .map((period) => [period.start, period.end])
+        .flat(),
+      7
+    );
 
-      const nominal = drawSinglePeriodData(
-        SERIES_NAME.NOMINAL,
-        xAxisData,
-        [result.ss2.NominalDefrostRecoveryIndex],
-        1
-      );
-
-      //@ts-ignore
-      series = [periodD, periodF, periodX, periodY, nominal, ...series];
+    const nominal = getDefrostRecoveryData(
+      nonLastBlock.map(
+        (periodBlock) => periodBlock.nominalDefrostRecoveryIndex
+      ),
+      xAxisData,
+      9
+    );
+    if (chartSS2Result != null && chartSS2Result) {
+      periodXTooltip = getXYTooltop(chartSS2Result);
+      periodYTooltip = periodXTooltip;
+      periodDTooltip = getDFTooltip(chartSS2Result);
+      periodFTooltip = getDFTooltip(chartSS2Result);
     }
+
+    //@ts-ignore
+    series = [periodD, periodF, periodX, periodY, nominal, ...series];
   }
+
+  if (selectedIndex > 0 && selectedIndex < xAxisData.length) {
+    const selectedSeries = selectedLine(xAxisData[selectedIndex]);
+    chartSeries = [...chartSeries, selectedSeries];
+  }
+
   chartSeries = [
     ...chartSeries,
     baselineSeries,
@@ -201,62 +366,25 @@ export function convertToChartData(
   const cycleKeys = Array.from(cycleDataIndex.keys()).sort((a, b) => a - b);
 
   const option = {
+    grid: {
+      left: '10%', // 또는 '5px', 0 등으로 줄일 수 있음
+      right: '10%',
+      top: '10%',
+      bottom: '10%',
+    },
     tooltip: {
       trigger: "axis",
-      formatter: (params: any[]) => {
-        const date = new Date(params[0].axisValue);
-        const timeStr = convertToTimeFormat(date);
-        
-        let tooltipStr = `${timeStr}<br/>`;
-        // tooltipStr += "Index #" + params[0].dataIndex + "<br/>";
-        // if (params.length > 0) {
-        //   const targetIndex = params[0].dataIndex;
-
-        //   let closestKey = null;
-        //   for (let i = cycleKeys.length - 1; i >= 0; i--) {
-        //     if (cycleKeys[i] <= targetIndex) {
-        //       closestKey = cycleKeys[i];
-        //       break;
-        //     }
-        //   }
-
-        //   if (closestKey !== null) {
-        //     tooltipStr += "TCC: " + cycleDataIndex.get(closestKey) + "<br/>";
-        //   } else {
-        //     tooltipStr += "TCC: X<br/>";
-        //   }
-        // }
-        params.forEach((param) => {
-          const seriesName = param.seriesName;
-          const value = param.value[1];
-          const unit = unitMap[seriesName] || "";
-          switch (seriesName) {
-            case SERIES_NAME.PERIOD_X:
-              tooltipStr += periodXTooltip;
-              break;
-            case SERIES_NAME.PERIOD_Y:
-              tooltipStr += periodYTooltip;
-              break;
-            case SERIES_NAME.PERIOD_D:
-              tooltipStr += periodDTooltip;
-              break;
-            case SERIES_NAME.PERIOD_F:
-              tooltipStr += periodFTooltip;
-              break;
-            case SERIES_NAME.PERIOD_XY:
-            case SERIES_NAME.PERIOD_DF:
-              tooltipStr += `${seriesName}: ${value} ${param.dataIndex}<br/>`;
-              break;
-            case SERIES_NAME.TCC:
-              tooltipStr += `${param.marker} TCC: #${param.dataIndex}<br/>`;
-              break;
-            default:
-              tooltipStr += `${param.marker} ${seriesName}: ${value} ${unit}<br/>`;
-              break;
-          }
-        });
-        return tooltipStr;
+      axisPointer: {
+        type: "cross",
       },
+      formatter: triggerFormat(
+        POWER_NAME,
+        cycleData,
+        periodXTooltip,
+        periodYTooltip,
+        periodDTooltip,
+        periodFTooltip
+      ),
     },
     legend: {
       data: legendData.map((s) => s.name),
@@ -279,22 +407,7 @@ export function convertToChartData(
         },
       },
     },
-    yAxis: [
-      {
-        type: "value",
-        name: "Temperature (℃)",
-        position: "left",
-        min: -30,
-        max: 40,
-      },
-      {
-        type: "value",
-        name: "Power (W, Wh)",
-        position: "right",
-        min: 0,
-        max: 600,
-      },
-    ],
+    yAxis,
     dataZoom: [
       { type: "slider", xAxisIndex: 0, start: 0, end: 100 },
       { type: "inside", xAxisIndex: 0, start: 0, end: 100 },
@@ -306,25 +419,44 @@ export function convertToChartData(
   return option;
 }
 
-const getCycleDashedData = (cycleData: CycleData[], xAxisData: number[]) => {
-  let markLineData = cycleData.map((cycle, index) => {
-    return {
-      xAxis: xAxisData[cycle.index],
-      lineStyle: { type: "dashed", color: "#888", width: 0.7 },
-      symbol: "none",
-      label: {
-        show: true,
-        formatter: () => `${cycle.count}`,
-      },
-    };
-  });
+const getCycleDashedData = (
+  cycleData: CycleData[],
+  xAxisData: number[],
+  startDate: Date,
+  endDate: Date
+) => {
+  let markLineData = cycleData
+    .filter((cycle) => {
+      return (
+        startDate.getTime() <= cycle.dateTime.getTime() &&
+        cycle.dateTime.getTime() <= endDate.getTime()
+      );
+    })
+    .map((cycle, index) => {
+      return {
+        xAxis: xAxisData[cycle.index],
+        lineStyle: { type: "dashed", color: "#888", width: 0.7 },
+        symbol: "none",
+        label: {
+          show: true,
+          formatter: () => `${cycle.count}`,
+        },
+      };
+    });
 
   return {
     name: SERIES_NAME.TCC,
     type: "line",
     silent: true,
     symbol: "none",
-    data: cycleData.map((tcc) => [xAxisData[tcc.index], 0]),
+    data: cycleData
+      .filter((cycle) => {
+        return (
+          startDate.getTime() <= cycle.dateTime.getTime() &&
+          cycle.dateTime.getTime() <= endDate.getTime()
+        );
+      })
+      .map((tcc) => [xAxisData[tcc.index], 0]),
     markLine: {
       silent: true,
       symbol: "none",
@@ -333,6 +465,101 @@ const getCycleDashedData = (cycleData: CycleData[], xAxisData: number[]) => {
     yAxisIndex: 0,
   };
 };
+function triggerFormat(
+  POWER_NAME: string,
+  cycleData: CycleData[],
+  periodXTooltip: string,
+  periodYTooltip: string,
+  periodDTooltip: string,
+  periodFTooltip: string
+) {
+  return (params: any[]) => {
+    const date = new Date(params[0].axisValue);
+    const timeStr = convertToTimeFormat(date);
+
+    let tooltipStr = `${timeStr}<br/>`;
+
+    let selectedParam = params.filter(
+      (param) => param.seriesName == POWER_NAME
+    )[0];
+    if (selectedParam) {
+      tooltipStr +=
+        "data Index: " +
+        params.filter((param) => param.seriesName == POWER_NAME)[0].dataIndex +
+        "<br/>";
+    }
+    if (selectedParam) {
+      let dataIndex = selectedParam.dataIndex;
+      for (let i = 0; i < cycleData.length; i++) {
+        if (cycleData[i].index > dataIndex) {
+          if (i == 0) {
+            break;
+          }
+          tooltipStr += `TCC: ${cycleData[i - 1].count}, index: ${
+            cycleData[i - 1].index
+          } <br/>`;
+          break;
+        }
+      }
+    }
+
+    params.forEach((param) => {
+      const seriesName = param.seriesName;
+      const value = param.value[1];
+
+      switch (seriesName) {
+        case SERIES_NAME.PERIOD_X:
+          tooltipStr += periodXTooltip;
+          break;
+        case SERIES_NAME.PERIOD_Y:
+          tooltipStr += periodYTooltip;
+          break;
+        case SERIES_NAME.PERIOD_D:
+          tooltipStr += periodDTooltip;
+          break;
+        case SERIES_NAME.PERIOD_F:
+          tooltipStr += periodFTooltip;
+          break;
+        case SERIES_NAME.PERIOD_XY:
+        case SERIES_NAME.PERIOD_DF:
+          tooltipStr += `${seriesName}: ${value} ${param.dataIndex}<br/>`;
+          break;
+        case SERIES_NAME.TCC:
+          tooltipStr += `${param.marker} TCC: #${param.dataIndex}<br/>`;
+          break;
+        default:
+          tooltipStr += `${param.marker} ${seriesName}: ${value}<br/>`;
+          break;
+      }
+    });
+    return tooltipStr;
+  };
+}
+
+function selectedLine(index: number) {
+  return {
+    name: "selected",
+    type: "line",
+    data: [],
+    lineStyle: { color: "rgb(255,0,0)" },
+    itemStyle: { color: "rgb(255,0,0)" },
+    symbol: "none",
+    markLine: {
+      silent: true,
+      symbol: "none",
+      lineStyle: { type: "dashed", color: "rgb(255,0,0)" },
+      data: [index].map((time) => ({
+        xAxis: time,
+        label: {
+          show: true,
+          formatter: () => convertToTimeFormat(new Date(time)),
+        },
+      })),
+    },
+    triggerLineEvent: true,
+    yAxisIndex: 0,
+  };
+}
 function getBaseLineSeries(midngihtLines: number[]) {
   return {
     name: "baseline",
@@ -361,11 +588,9 @@ function seriesData(
   headers: string[],
   rawData: ExcelData,
   xAxisData: number[],
-  unitMap: Record<string, string>
+  yAxisMap: Record<string, number>
 ) {
   return headers.slice(2).map((header, colIndex) => {
-    const unit = unitMap[header];
-    const isPowerUnit = unit !== "℃";
     return {
       name: header,
       type: "line" as const,
@@ -377,7 +602,7 @@ function seriesData(
       itemStyle: { color: getColor(colIndex) },
       symbol: "none",
       triggerLineEvent: true,
-      yAxisIndex: isPowerUnit ? 1 : 0,
+      yAxisIndex: yAxisMap[header] ?? 0,
     };
   });
 }
@@ -392,9 +617,16 @@ function drawSinglePeriodData(
     name: header,
     type: "line",
     data: xAxisData
-      .filter(
-        (value, index) => periodData[0] <= index && periodData[1] >= index
-      )
+      .filter((value, index) => {
+        let rtn = false;
+        for (let i = 0; i < periodData.length; i += 2) {
+          if (periodData[i] <= index && periodData[i + 1] >= index) {
+            rtn = true;
+            break;
+          }
+        }
+        return rtn;
+      })
       .map((value) => [value, 20 + colorIndex]),
     markLine: {
       symbol: "none",
@@ -427,46 +659,40 @@ function drawSinglePeriodData(
   };
 }
 
-function drawPeriodData(
-  header: string,
+const getDefrostRecoveryData = (
+  indexes: number[],
   xAxisData: number[],
-  periodData: number[],
-  colorIndex: number = 2
-) {
+  colorIndex: number = 7
+) => {
   return {
-    name: header,
+    name: "Defrost Cycle Index",
     type: "line",
-    data: periodData.map((value) => [xAxisData[value], 0]),
-    markLine: {
-      symbol: "none",
-      data: periodData.map((value) => ({
-        xAxis: xAxisData[value],
-        label: {
-          show: true,
-          formatter: () => convertToTimeFormat(new Date(xAxisData[value])),
-        },
-      })),
-      lineStyle: {
-        color: getColor(colorIndex),
-        type: "dashed",
-        width: 2,
-      },
-    },
-    lineStyle: {
-      color: getColor(colorIndex),
-      width: 1,
-      type: "solid",
-    },
-    triggerLineEvent: true,
-    itemStyle: {
-      color: getColor(colorIndex),
-      width: 1,
-      type: "solid",
-    },
+    silent: true,
     symbol: "none",
-    yAxisIndex: 0, // 또는 1
+    data: [],
+    yAxisIndex: 1,
+    markLine: {
+      silent: true,
+      symbol: "none",
+      data: indexes.map((index) => {
+        return {
+          xAxis: xAxisData[index],
+          lineStyle: {
+            type: "dashed",
+            color: getColor(colorIndex),
+            width: 1.0,
+          },
+          symbol: "none",
+          label: {
+            show: false,
+            formatter: () => convertToTimeFormat(new Date(xAxisData[index])),
+          },
+        };
+      }),
+    },
   };
-}
+};
+
 const getDefrostDashedData = (
   cycleData: CycleData[],
   powerData: number[],
@@ -509,7 +735,7 @@ const getMidnightLines = (xAxisDate: number[]): number[] => {
   return Array.from(uniqueMidnights).sort((a, b) => a - b);
 };
 
-function convertToTimeFormat(date: Date) {
+export function convertToTimeFormat(date: Date) {
   const hours = date.getHours() % 12 || 12;
   const ampm = date.getHours() >= 12 ? "PM" : "AM";
   return `${
@@ -517,4 +743,93 @@ function convertToTimeFormat(date: Date) {
   }/${date.getDate()}/${date.getFullYear()} ${hours}:${String(
     date.getMinutes()
   ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")} ${ampm}`;
+}
+
+function getXYTooltop(result: ChartSS2Result): string {
+  let tooltipStr = "";
+  tooltipStr += `Duration X: ${result.xDuration}h <br/>`;
+  tooltipStr += `Duration Y: ${result.yDuration}h <br/>`;
+  tooltipStr += `Number of TCC X: ${result.xTCC} <br/>`;
+  tooltipStr += `Number of TCC Y: ${result.yTCC} <br/>`;
+  tooltipStr += `Ratio XY: ${result.xyRatio} <br/>`;
+  tooltipStr += `Unfrozen Temp X: ${result.xUnfrozenTemp}℃ <br/>`;
+  tooltipStr += `Unfrozen Temp Y: ${result.yUnfrozenTemp}℃ <br/>`;
+  tooltipStr += `Spread Unfrozen Temp: ${result.xySpreadUnfrozenTemp} K <br/>`;
+  tooltipStr += `Frozen Temp X: ${result.xFrozenTemp}℃ <br/>`;
+  tooltipStr += `Frozen Temp Y: ${result.yFrozenTemp}℃ <br/>`;
+  tooltipStr += `Spread Frozen Temp: ${result.xySpreadFrozenTemp} K <br/>`;
+  tooltipStr += `Power X: ${result.xPower}W <br/>`;
+  tooltipStr += `Power Y: ${result.yPower}W <br/>`;
+  tooltipStr += `Spread Power#1: ${result.xySpreadPowerPercent * 100}% <br/>`;
+  tooltipStr += `Spread Power#2: ${result.xySpreadPowerWatt}W <br/>`;
+  tooltipStr += `Energy X-Y: ${result.xyEnergy}Wh <br/>`;
+  tooltipStr += `PSS2: ${result.PSS2} <br/>`;
+  tooltipStr += `Edf: ${result.Edf} <br/>`;
+  tooltipStr += `PSS: ${result.PSS} <br/>`;
+
+  tooltipStr += `<br/>`;
+  return tooltipStr;
+}
+
+function getDFTooltip(result: ChartSS2Result): string {
+  let tooltipStr = "";
+  tooltipStr += `Duration D: ${result.dDuration}h <br/>`;
+  tooltipStr += `Duration F: ${result.fDuration}h <br/>`;
+  tooltipStr += `Number of TCC D: ${result.dTCC} <br/>`;
+  tooltipStr += `Number of TCC F: ${result.fTCC} <br/>`;
+  tooltipStr += `Ratio DF: ${result.dfRatio} <br/>`;
+  tooltipStr += `D - Nominal Duration: ${result.dNominalDuration}h <br/>`;
+  tooltipStr += `F - Nominal Duration: ${result.fNominalDuration}h <br/>`;
+  tooltipStr += `D - Unfrozen Temp: ${result.dUnfrozenTemp}℃ <br/>`;
+  tooltipStr += `F - Unfrozen Temp: ${result.fUnfrozenTemp}℃ <br/>`;
+  tooltipStr += `Spread Unfrozen Temp: ${result.dfSpreadUnfrozenTemp} K <br/>`;
+  tooltipStr += `D - Frozen Temp: ${result.dFrozenTemp}℃ <br/>`;
+  tooltipStr += `F - Frozen Temp: ${result.fFrozenTemp}℃ <br/>`;
+  tooltipStr += `Spread Frozen Temp: ${result.dfSpreadFrozenTemp} K <br/>`;
+  tooltipStr += `Power D: ${result.dPower}W <br/>`;
+  tooltipStr += `Power F: ${result.fPower}W <br/>`;
+  tooltipStr += `Spread Power#1: ${result.dfSpreadPowerPercent * 100}% <br/>`;
+  tooltipStr += `Spread Power#2: ${result.dfSpreadPowerWatt}W <br/>`;
+  tooltipStr += `${printTdf(result.Thdf, "Thdf-")}<br/>`;
+  tooltipStr += `${printTdf(result.TSS2, "TSS2-")}<br/>`;
+
+  tooltipStr += `<br/>`;
+  return tooltipStr;
+}
+
+function printTdf(tdf: Tdf, prefix: string = "", postfix: string = "<br/>") {
+  let str = "";
+  const config = get(selectedStore);
+  if (isValidTV(config.freshFood)) {
+    str += prefix + "Fresh Food: " + tdf.freshFood + postfix;
+  }
+  if (isValidTV(config.cellar)) {
+    str += prefix + "Cellar: " + tdf.cellar + postfix;
+  }
+  if (isValidTV(config.pantry)) {
+    str += prefix + "Pantry: " + tdf.pantry + postfix;
+  }
+  if (isValidTV(config.wineStorage)) {
+    str += prefix + "Wine Storage: " + tdf.wineStorage + postfix;
+  }
+  if (isValidTV(config.chill)) {
+    str += prefix + "Chill: " + tdf.chill + postfix;
+  }
+  if (isValidTV(config.frozenZeroStar)) {
+    str += prefix + "Frozen Zero Star: " + tdf.frozenZeroStar + postfix;
+  }
+  if (isValidTV(config.frozenOneStar)) {
+    str += prefix + "Frozen One Star: " + tdf.frozenOneStar + postfix;
+  }
+  if (isValidTV(config.frozenTwoStar)) {
+    str += prefix + "Frozen Two Star: " + tdf.frozenTwoStar + postfix;
+  }
+  if (isValidTV(config.frozenThreeStar)) {
+    str += prefix + "Frozen Three Star: " + tdf.frozenThreeStar + postfix;
+  }
+  if (isValidTV(config.frozenFourStar)) {
+    str += prefix + "Frozen Four Star: " + tdf.frozenFourStar + postfix;
+  }
+
+  return str;
 }

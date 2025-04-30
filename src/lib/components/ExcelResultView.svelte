@@ -1,7 +1,7 @@
 <script>
+  import { chartYAxisStore } from "$lib/store/chartYAxisStore";
   import { Button, ButtonGroup, StepIndicator } from "flowbite-svelte";
   import DataSetting from "./DataSetting.svelte";
-  import EChartComponent from "./EChartComponent.svelte";
   import IECChartComponent from "./IECChartComponent.svelte";
   import ModelView from "./ModelView.svelte";
 
@@ -44,6 +44,22 @@
 
   let currentStep = 1;
   let steps = ["Model", "Table Setting", "Chart"];
+
+  function initYAxis() {
+    const header = chunkData[0];
+    const unit = chunkData[1];
+    console.log(header, unit);
+
+    for (let i = 0; i < header.length && i < unit.length; i++) {
+      if (unit[i] && unit[i] !== null) {
+        if (unit[i] !== "℃") {
+          $chartYAxisStore.series.push({ header: header[i], yAxis: 1 });
+        } else {
+          $chartYAxisStore.series.push({ header: header[i], yAxis: 0 });
+        }
+      }
+    }
+  }
 </script>
 
 <main class=" p-6">
@@ -65,6 +81,10 @@
           if (currentStep >= steps.length) {
             return;
           }
+          if (currentStep == 2) {
+            // init yAxis
+            initYAxis();
+          }
           currentStep = currentStep + 1;
         }}
         disabled={currentStep >= steps.length}>Next</Button
@@ -72,12 +92,12 @@
     </ButtonGroup>
   </div>
   {#if currentStep === 1}
-    <ModelView {vendor}/>
+    <ModelView {vendor} />
   {:else if currentStep == 2}
     <DataSetting data={chunkData} />
   {:else if currentStep == 3}
     {#if chunkData.length > 0}
-    <IECChartComponent data= {chunkData} />
+      <IECChartComponent data={chunkData} />
       <!-- <EChartComponent data={chunkData} /> -->
     {/if}
   {/if}

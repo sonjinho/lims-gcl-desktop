@@ -18,13 +18,13 @@ export enum TemperatureIndex {
   FROZEN_4_STAR,
 }
 
-export function IEC62552(
-  excelData: ExcelData,
-  startDate: Date,
-  endDate: Date,
-  numberOfTCC: number,
-  ssType: number = 0
-) {}
+export function IEC62552_3_SS1_Excel(
+  rawData: ExcelData,
+  cycleData: CycleData[],
+  
+) {
+
+}
 
 export default function IEC62552_ExportData(
   excelData: ExcelData,
@@ -104,74 +104,60 @@ function detectCycleData(
     }
     const currentPower = Number(powerData[i]) || 0; // 숫자가 아닌 경우 0으로 처리
     const nextPower2 = Number(powerData[i + 5]) || 0; // i+2 값
-    if (currentPower + threshold < nextPower2) {
-      let maxIndex = findIndexWindow(powerData, i + 5, 5);
-      if (set.has(maxIndex)) {
+
+    let dynamicThreshold = threshold;
+    if (currentPower < threshold /  2) {
+      dynamicThreshold = 5;
+    } else if (currentPower >= threshold / 2 && currentPower < threshold) {
+      dynamicThreshold = threshold /2;
+    } else {
+      dynamicThreshold = threshold;
+    }
+
+    if ((currentPower + dynamicThreshold) < nextPower2) {
+      let maxIndex = i + 5;
+      if (set.has(maxIndex))  {
         continue;
       } else {
-        set.add(maxIndex);
-        cycleData.push({
-          index: maxIndex,
-          count: count++,
-          dateTime: dateTimeData[maxIndex],
-          max: -1,
-        });
+        if (set.has(maxIndex -1) || set.has(maxIndex -2) || set.has(maxIndex -3) || set.has(maxIndex -4) || set.has(maxIndex -5)) {
+          continue;
+        } else {
+          set.add(maxIndex);
+          cycleData.push({
+            index: maxIndex,
+            count: count++,
+            dateTime: dateTimeData[maxIndex],
+            max: -1,
+          });
+        }
       }
+      // let maxIndex = findIndexWindow(powerData, i + 5, 5);
+      // if (set.has(maxIndex)) {
+      //   continue;
+      // } else {
+      //   set.add(maxIndex);
+      //   if (set.has(maxIndex -1) || set.has(maxIndex -2) || set.has(maxIndex -3) || set.has(maxIndex -4) || set.has(maxIndex -5)) {
+      //     set.delete(maxIndex-1);
+      //     set.delete(maxIndex-2);
+      //     set.delete(maxIndex-3);
+      //     set.delete(maxIndex-4);
+      //     set.delete(maxIndex-5);
+      //     cycleData.pop();
+      //   }
+      //   cycleData.push({
+      //     index: maxIndex,
+      //     count: count++,
+      //     dateTime: dateTimeData[maxIndex],
+      //     max: -1,
+      //   });
+      // }
     }
-    // const comparePower1 = Number(powerData[i + 1]) || 0; // i+1 값
-    // const comparePower2 = Number(powerData[i + 2]) || 0; // i+1 값
-    // const comparePower3 = Number(powerData[i + 3]) || 0; // i+1 값
-    // const comparePower4 = Number(powerData[i + 4]) || 0; // i+1 값
 
-    // // 조건 1: powerData[i]와 powerData[i+1]의 차이가 5보다 작으면 스킵
-    // if (currentPower > comparePower1 - 10) {
-    //   continue; // 스킵
-    // }
-
-    // if (currentPower > comparePower2 - 10) {
-    //   continue; // 스킵
-    // }
-
-    // if (currentPower > comparePower3 - 10) {
-    //   continue; // 스킵
-    // }
-
-    // if (currentPower > comparePower4 - 10) {
-    //   continue; // 스킵
-    // }
-
-    // // if (currentPower > 3) {
-    // //   continue;
-    // // }
-
-    // if (currentPower < nextPower2 - threshold) {
-    //   // cycle
-    //   if (
-    //     set.has(i - 1) ||
-    //     set.has(i - 2) ||
-    //     set.has(i - 3) ||
-    //     set.has(i - 4) ||
-    //     set.has(i - 5)
-    //   ) {
-    //     continue;
-    //   }
-    //   set.add(i);
-    //   cycleData.push({
-    //     index: i,
-    //     count: count++,
-    //     dateTime: dateTimeData[i],
-    //     max: -1,
-    //   });
-    // }
   }
   return cycleData;
 }
 
-function findIndexWindow(
-  powerData: number[],
-  index: number,
-  window: number
-) {
+function findIndexWindow(powerData: number[], index: number, window: number) {
   let max = powerData[index];
   let maxIndex = index;
   for (
@@ -187,7 +173,7 @@ function findIndexWindow(
 
   if (windowDifference(powerData, maxIndex, window)) {
     for (let i = maxIndex - 1; i > maxIndex - window; i--) {
-      if ((powerData[maxIndex] - powerData[i]) > 5) {
+      if (powerData[maxIndex] - powerData[i] > 5) {
         maxIndex = i + 1;
         break;
       }
@@ -197,7 +183,7 @@ function findIndexWindow(
 }
 
 function windowDifference(powerData: number[], index: number, window: number) {
-  if ((powerData[index] - powerData[index - 1]) <= 3) {
+  if (powerData[index] - powerData[index - 1] <= 3) {
     return true;
   } else {
     return false;
@@ -209,7 +195,7 @@ export function IEC62552_ExportData_SS2(
   startDate: Date,
   endDate: Date,
   numberOfTCC: number = 3
-):SS2Result | null{
+): SS2Result | null {
   // ExcelData
   const rawData = excelData.slice(2);
   const config = get(selectedStore) as AnalyzeConfig;
@@ -245,9 +231,12 @@ export function IEC62552_ExportData_SS2(
   );
 }
 
-export function detectDefrostRecovery(powerData: number[], cycleData: CycleData[]) {
+export function detectDefrostRecovery(
+  powerData: number[],
+  cycleData: CycleData[]
+) {
   let threshold = powerData.reduce((p, c) => p + c, 0) / powerData.length;
-
+  console.log("Defrost Recovery Threshold: ", threshold);
   let defrostRecoveryCycleIndex = [];
 
   for (let i = 1; i < cycleData.length - 1; i++) {
@@ -255,16 +244,17 @@ export function detectDefrostRecovery(powerData: number[], cycleData: CycleData[
     const currentCycle = cycleData[i];
 
     if (
-      powerData[beforeCycle.index] + threshold <
+      (powerData[beforeCycle.index] + threshold) <
       powerData[currentCycle.index]
     ) {
       defrostRecoveryCycleIndex.push(currentCycle.index);
     }
   }
+  console.log("Defrost Recovery Index: ", defrostRecoveryCycleIndex);
   return defrostRecoveryCycleIndex;
 }
 
-function getEvaluateFrozenIndex(config: AnalyzeConfig) {
+export function getEvaluateFrozenIndex(config: AnalyzeConfig) {
   let evaluateFrozenIndex = [];
   switch (config.evaluateFrozen) {
     case TemperatureIndex.FROZEN_0_STAR:
@@ -290,7 +280,7 @@ function getEvaluateFrozenIndex(config: AnalyzeConfig) {
   return evaluateFrozenIndex;
 }
 
-function getEvaluateUnfrozenIndex(config: AnalyzeConfig) {
+export function getEvaluateUnfrozenIndex(config: AnalyzeConfig) {
   let evaluateUnfrozenIndex = [];
   switch (config.evaluateUnfrozen) {
     case TemperatureIndex.FRESH_FOOD:
