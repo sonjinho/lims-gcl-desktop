@@ -1,4 +1,3 @@
-import { excelDataStore } from "$lib/store/excelDataStore";
 import { isValidTV, selectedStore } from "$lib/store/selectedStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
@@ -121,7 +120,6 @@ export default async function openExcelFile(
     // console.log(optimizedData)
     console.log("Duration: " + (end.getTime() - start.getTime()) + "ms");
 
-    excelDataStore.set(optimizedData);
     return optimizedData;
   } catch (error) {
     console.error("Read Excel File Error:", error);

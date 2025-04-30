@@ -1,6 +1,5 @@
 <script>
   import ExcelResultView from "$lib/components/ExcelResultView.svelte";
-  import { excelDataStore } from "$lib/store/excelDataStore";
   import { itemsStore } from "$lib/store/itemsStore";
   import { selectedStore } from "$lib/store/selectedStore";
   import { loadAll, loadById, SS1Config } from "$lib/util/db.util";
