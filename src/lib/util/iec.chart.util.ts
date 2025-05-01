@@ -1,10 +1,13 @@
+import { chartYAxisStore } from "$lib/store/chartYAxisStore";
 import { get } from "svelte/store";
 import { isValidTV, selectedStore } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
-import { runSS2_manual, type PeriodBlock } from "./iec.62552.3.ss2.util";
-import { detectDefrostRecovery } from "./iec.62552.3.util";
-import type { CycleData, Tdf } from "./iec.util";
-import { chartYAxisStore } from '$lib/store/chartYAxisStore';
+import { runSS2_manual, SS2Result, type PeriodBlock } from "./iec.62552.3.ss2.util";
+import {
+  detectDefrostRecovery,
+  type CycleData,
+  type Tdf,
+} from "./iec.62552.3.util";
 
 const COLORS = [
   "rgb(75, 192, 192)",
@@ -68,144 +71,6 @@ const getColor = (index: number): string => {
   return COLORS[index % COLORS.length];
 };
 
-interface ChartSS2ResultProps {
-  xDuration: number;
-  yDuration: number;
-  xTCC: number;
-  yTCC: number;
-  xyRatio: number;
-  xUnfrozenTemp: number;
-  yUnfrozenTemp: number;
-  xySpreadUnfrozenTemp: number;
-  xFrozenTemp: number;
-  yFrozenTemp: number;
-  xySpreadFrozenTemp: number;
-  xPower: number;
-  yPower: number;
-  xySpreadPowerPercent: number;
-  xySpreadPowerWatt: number;
-  xyEnergy: number;
-  dDuration: number;
-  fDuration: number;
-  dTCC: number;
-  fTCC: number;
-  dfRatio: number;
-  dNominalDuration: number;
-  fNominalDuration: number;
-  dUnfrozenTemp: number;
-  fUnfrozenTemp: number;
-  dfSpreadUnfrozenTemp: number;
-  dFrozenTemp: number;
-  fFrozenTemp: number;
-  dfSpreadFrozenTemp: number;
-  dPower: number;
-  fPower: number;
-  dfSpreadPowerPercent: number;
-  dfSpreadPowerWatt: number;
-  Edf: number;
-  Thdf: Tdf;
-  PSS2: number;
-  TSS2: Tdf;
-  Tat: number;
-  Tam: number;
-  c1: number;
-  c2: number;
-  deltaCop: number;
-  PSS: number;
-}
-
-export class ChartSS2Result {
-  xDuration: number;
-  yDuration: number;
-  xTCC: number;
-  yTCC: number;
-  xyRatio: number;
-  xUnfrozenTemp: number;
-  yUnfrozenTemp: number;
-  xySpreadUnfrozenTemp: number;
-  xFrozenTemp: number;
-  yFrozenTemp: number;
-  xySpreadFrozenTemp: number;
-  xPower: number;
-  yPower: number;
-  xySpreadPowerPercent: number;
-  xySpreadPowerWatt: number;
-  xyEnergy: number;
-  dDuration: number;
-  fDuration: number;
-  dTCC: number;
-  fTCC: number;
-  dfRatio: number;
-  dNominalDuration: number;
-  fNominalDuration: number;
-  dUnfrozenTemp: number;
-  fUnfrozenTemp: number;
-  dfSpreadUnfrozenTemp: number;
-  dFrozenTemp: number;
-  fFrozenTemp: number;
-  dfSpreadFrozenTemp: number;
-  dPower: number;
-  fPower: number;
-  dfSpreadPowerPercent: number;
-  dfSpreadPowerWatt: number;
-  Edf: number;
-  Thdf: Tdf;
-  PSS2: number;
-  TSS2: Tdf;
-  Tat: number;
-  Tam: number;
-  c1: number;
-  c2: number;
-  deltaCop: number;
-  PSS: number;
-
-  constructor(props: ChartSS2ResultProps) {
-    this.xDuration = props.xDuration;
-    this.yDuration = props.yDuration;
-    this.xTCC = props.xTCC;
-    this.yTCC = props.yTCC;
-    this.xyRatio = props.xyRatio;
-    this.xUnfrozenTemp = props.xUnfrozenTemp;
-    this.yUnfrozenTemp = props.yUnfrozenTemp;
-    this.xySpreadUnfrozenTemp = props.xySpreadUnfrozenTemp;
-    this.xFrozenTemp = props.xFrozenTemp;
-    this.yFrozenTemp = props.yFrozenTemp;
-    this.xySpreadFrozenTemp = props.xySpreadFrozenTemp;
-    this.xPower = props.xPower;
-    this.yPower = props.yPower;
-    this.xySpreadPowerPercent = props.xySpreadPowerPercent;
-    this.xySpreadPowerWatt = props.xySpreadPowerWatt;
-    this.xyEnergy = props.xyEnergy;
-    this.dDuration = props.dDuration;
-    this.fDuration = props.fDuration;
-    this.dTCC = props.dTCC;
-    this.fTCC = props.fTCC;
-    this.dfRatio = props.dfRatio;
-    this.dNominalDuration = props.dNominalDuration;
-    this.fNominalDuration = props.fNominalDuration;
-    this.dUnfrozenTemp = props.dUnfrozenTemp;
-    this.fUnfrozenTemp = props.fUnfrozenTemp;
-    this.dfSpreadUnfrozenTemp = props.dfSpreadUnfrozenTemp;
-    this.dFrozenTemp = props.dFrozenTemp;
-    this.fFrozenTemp = props.fFrozenTemp;
-    this.dfSpreadFrozenTemp = props.dfSpreadFrozenTemp;
-    this.dPower = props.dPower;
-    this.fPower = props.fPower;
-    this.dfSpreadPowerPercent = props.dfSpreadPowerPercent;
-    this.dfSpreadPowerWatt = props.dfSpreadPowerWatt;
-    this.Edf = props.Edf;
-    this.Thdf = props.Thdf;
-    this.PSS2 = props.PSS2;
-    this.TSS2 = props.TSS2;
-    this.Tat = props.Tat;
-    this.Tam = props.Tam;
-    this.c1 = props.c1;
-    this.c2 = props.c2;
-    this.deltaCop = props.deltaCop;
-    this.PSS = props.PSS;
-  }
-}
-
 export function convertToChartData(
   excelData: ExcelData,
   startTime: string,
@@ -226,7 +91,6 @@ export function convertToChartData(
     yAxisStore.series.map(({ header, yAxis }) => [header, yAxis])
   );
 
-
   const yAxis = yAxisStore.yAxis.map((axis, index) => {
     return {
       type: "value",
@@ -237,13 +101,12 @@ export function convertToChartData(
       axisLine: {
         show: true,
         lineStyle: {
-          color: getColor(axis.color)
-        }
+          color: getColor(axis.color),
+        },
       },
       offset: index == 0 ? 0 : 80 * (index - 1),
-    }
-  })
-    
+    };
+  });
 
   const POWER_NAME = excelData[0][config.power] as string;
   const rawData = excelData.slice(2);
@@ -367,10 +230,10 @@ export function convertToChartData(
 
   const option = {
     grid: {
-      left: '10%', // 또는 '5px', 0 등으로 줄일 수 있음
-      right: '10%',
-      top: '10%',
-      bottom: '10%',
+      left: "10%", // 또는 '5px', 0 등으로 줄일 수 있음
+      right: "10%",
+      top: "10%",
+      bottom: "10%",
     },
     tooltip: {
       trigger: "axis",
@@ -693,38 +556,6 @@ const getDefrostRecoveryData = (
   };
 };
 
-const getDefrostDashedData = (
-  cycleData: CycleData[],
-  powerData: number[],
-  xAxisData: number[]
-) => {
-  const indexes: number[] = detectDefrostRecovery(powerData, cycleData);
-  console.log(indexes);
-  return {
-    name: "Defrost Cycle Index",
-    type: "line",
-    silent: true,
-    symbol: "none",
-    data: [],
-    yAxisIndex: 1,
-    markLine: {
-      silent: true,
-      symbol: "none",
-      data: indexes.map((index) => {
-        return {
-          xAxis: xAxisData[index],
-          lineStyle: { type: "dashed", color: "rgb(255, 99, 132)", width: 1.0 },
-          symbol: "none",
-          label: {
-            show: false,
-            formatter: () => convertToTimeFormat(new Date(xAxisData[index])),
-          },
-        };
-      }),
-    },
-  };
-};
-
 const getMidnightLines = (xAxisDate: number[]): number[] => {
   const uniqueMidnights = new Set<number>();
   xAxisDate.forEach((timestamp) => {
@@ -745,7 +576,7 @@ export function convertToTimeFormat(date: Date) {
   ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")} ${ampm}`;
 }
 
-function getXYTooltop(result: ChartSS2Result): string {
+function getXYTooltop(result: SS2Result): string {
   let tooltipStr = "";
   tooltipStr += `Duration X: ${result.xDuration}h <br/>`;
   tooltipStr += `Duration Y: ${result.yDuration}h <br/>`;
@@ -771,7 +602,7 @@ function getXYTooltop(result: ChartSS2Result): string {
   return tooltipStr;
 }
 
-function getDFTooltip(result: ChartSS2Result): string {
+function getDFTooltip(result: SS2Result): string {
   let tooltipStr = "";
   tooltipStr += `Duration D: ${result.dDuration}h <br/>`;
   tooltipStr += `Duration F: ${result.fDuration}h <br/>`;

@@ -1,4 +1,5 @@
 import { differenceInSeconds } from "date-fns";
+import { get } from "svelte/store";
 import {
   type AnalyzeConfig,
   isTwoComaprtment,
@@ -6,20 +7,21 @@ import {
   selectedStore,
 } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
-import getTestPeriodAverage, {
+import {
   ConstantTemperature,
   type CycleData,
   getConstValue,
+  getEvaluateFrozenIndex,
+  getEvaluateUnfrozenIndex,
+  getTestPeriodAverage,
   type Tdf,
-} from "./iec.util";
-import { get } from 'svelte/store';
-import { getEvaluateFrozenIndex, getEvaluateUnfrozenIndex } from './iec.62552.3.util';
+} from "./iec.62552.3.util";
 
 export function runSS1_manual(
   rawData: ExcelData,
   timeData: Date[],
   cycleData: CycleData[],
-  numberOfTCC: number,
+  numberOfTCC: number
 ): ExportRow[] {
   let config = get(selectedStore);
   let evaluateFrozenIndex = getEvaluateFrozenIndex(config);
@@ -36,7 +38,76 @@ export function runSS1_manual(
   );
 }
 
-export function runSS1(
+export class ExportRow {
+  blockA: string;
+  blockB: string;
+  blockC: string;
+
+  testPeriodUnfrozen: number;
+
+  testPeriodFrozen: number;
+
+  testPeriodPower: number;
+  testPeriodABC: number;
+
+  ambientTemp: number;
+  spreadUnfrozen: number;
+  spreadFrozen: number;
+  spreadPower: number;
+  slopeUnfrozen: number;
+  slopeFrozen: number;
+  slopePower: number;
+
+  permittedPowerSpread: number;
+  valid: boolean;
+  testPeriodValid: boolean;
+  pss: number;
+
+  blockATime: string = "";
+  blockBTime: string = "";
+  blockCTime: string = "";
+  constructor(
+    blockA: string = "",
+    blockB: string = "",
+    blockC: string = "",
+    testPeriodUnfrozen: number = 0,
+    testPeriodFrozen: number = 0,
+    testPeriodPower: number = 0,
+    testPeriodABC: number = 0,
+    ambientTemp: number = 0,
+    spreadUnfrozen: number = 0,
+    spreadFrozen: number = 0,
+    spreadPower: number = 0,
+    slopeUnfrozen: number = 0,
+    slopeFrozen: number = 0,
+    slopePower: number = 0,
+    permittedPowerSpread: number = 0,
+    valid: boolean = false,
+    testPeriodValid: boolean = false,
+    pss: number = 0
+  ) {
+    this.blockA = blockA;
+    this.blockB = blockB;
+    this.blockC = blockC;
+    this.testPeriodUnfrozen = testPeriodUnfrozen;
+    this.testPeriodFrozen = testPeriodFrozen;
+    this.testPeriodPower = testPeriodPower;
+    this.testPeriodABC = testPeriodABC;
+    this.ambientTemp = ambientTemp;
+    this.spreadUnfrozen = spreadUnfrozen;
+    this.spreadFrozen = spreadFrozen;
+    this.spreadPower = spreadPower;
+    this.slopeUnfrozen = slopeUnfrozen;
+    this.slopeFrozen = slopeFrozen;
+    this.slopePower = slopePower;
+    this.permittedPowerSpread = permittedPowerSpread;
+    this.valid = valid;
+    this.testPeriodValid = testPeriodValid;
+    this.pss = pss;
+  }
+}
+
+function runSS1(
   cycleData: CycleData[],
   timeData: Date[],
   rawData: ExcelData,
@@ -48,7 +119,6 @@ export function runSS1(
   if (cycleData.length < numberOfTCC * 3) {
     alert("Not Enough TCC");
   }
-
 
   let exportData: ExportRow[] = [];
   for (let i = 0; i < cycleData.length - numberOfTCC * 3 - 1; i++) {
@@ -73,13 +143,25 @@ export function runSS1(
       evaluateUnfrozenIndex,
       config
     );
-    row.blockA = `TCC ${cycleData[k].count} to ${cycleData[k + numberOfTCC].count - 1}`;
-    row.blockB = `TCC ${cycleData[k + numberOfTCC].count} to ${cycleData[k + numberOfTCC * 2].count - 1}`;
-    row.blockC = `TCC ${cycleData[k + numberOfTCC * 2].count} to ${cycleData[k + numberOfTCC * 3].count - 1}`;
+    row.blockA = `TCC ${cycleData[k].count} to ${
+      cycleData[k + numberOfTCC].count - 1
+    }`;
+    row.blockB = `TCC ${cycleData[k + numberOfTCC].count} to ${
+      cycleData[k + numberOfTCC * 2].count - 1
+    }`;
+    row.blockC = `TCC ${cycleData[k + numberOfTCC * 2].count} to ${
+      cycleData[k + numberOfTCC * 3].count - 1
+    }`;
 
-    row.blockATime = `${timeData[cycleData[k].index]} to ${timeData[cycleData[k + numberOfTCC].index]}`;
-    row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${timeData[cycleData[k + numberOfTCC * 2].index]}`
-    row.blockCTime = `${timeData[cycleData[k + numberOfTCC * 2].index]} to ${timeData[cycleData[k + numberOfTCC * 3].index]}`;
+    row.blockATime = `${timeData[cycleData[k].index]} to ${
+      timeData[cycleData[k + numberOfTCC].index]
+    }`;
+    row.blockBTime = `${timeData[cycleData[k + numberOfTCC].index]} to ${
+      timeData[cycleData[k + numberOfTCC * 2].index]
+    }`;
+    row.blockCTime = `${timeData[cycleData[k + numberOfTCC * 2].index]} to ${
+      timeData[cycleData[k + numberOfTCC * 3].index]
+    }`;
     exportData.push(row);
   }
 
@@ -125,7 +207,7 @@ export function runSS1(
     const Tdf = calcTdf(rawData, startIndex, endIndex, config);
 
     const deno = calcDenominator(config, c1, c2, Tam, Tdf);
-    const numer = calcNumer(config, c1, c2, Tam);
+    const numer = calcNumerator(config, c1, c2, Tam);
     const deltaCop = isTwoComaprtment(config)
       ? constV.deltaCopTwo
       : constV.deltaCopOne;
@@ -182,7 +264,7 @@ function createExportRow(
   row.testPeriodABC =
     differenceInSeconds(timeData[endIndex], timeData[startIndex]) / 3600;
 
-  row.spreadUnfrozen = getSpread(
+  row.spreadUnfrozen = calcSpreadTemperature(
     rawData,
     blockA,
     blockB,
@@ -190,7 +272,7 @@ function createExportRow(
     evaluateUnfrozenIndex
   );
 
-  row.spreadFrozen = getSpread(
+  row.spreadFrozen = calcSpreadTemperature(
     rawData,
     blockA,
     blockB,
@@ -198,11 +280,11 @@ function createExportRow(
     evaluateFrozenIndex
   );
 
-  row.spreadPower = getSpreadPower(rawData, blockA, blockB, blockC, [
+  row.spreadPower = calcSpreadPower(rawData, blockA, blockB, blockC, [
     config.power,
   ]);
 
-  row.slopeUnfrozen = getSlope(
+  row.slopeUnfrozen = calcSlope(
     rawData,
     blockA,
     blockC,
@@ -210,7 +292,7 @@ function createExportRow(
     row.testPeriodABC
   );
 
-  row.slopeFrozen = getSlope(
+  row.slopeFrozen = calcSlope(
     rawData,
     blockA,
     blockC,
@@ -236,7 +318,7 @@ function createExportRow(
   return row;
 }
 
-function getSpread(
+function calcSpreadTemperature(
   rawData: ExcelData,
   blockA: number[],
   blockB: number[],
@@ -268,7 +350,7 @@ function getSpread(
   );
 }
 
-function getSpreadPower(
+function calcSpreadPower(
   rawData: ExcelData,
   blockA: number[],
   blockB: number[],
@@ -297,12 +379,14 @@ function getSpreadPower(
   );
 
   return (
-    (Math.max(blockAPower, blockBPower, blockCPower) - Math.min(blockAPower,blockBPower, blockCPower)) /
-    getTestPeriodAverage(rawData, blockA[0], blockC[1], powerIndex)
-  ) * 100;
+    ((Math.max(blockAPower, blockBPower, blockCPower) -
+      Math.min(blockAPower, blockBPower, blockCPower)) /
+      getTestPeriodAverage(rawData, blockA[0], blockC[1], powerIndex)) *
+    100
+  );
 }
 
-function getSlope(
+function calcSlope(
   rawData: ExcelData,
   blockA: number[],
   blockC: number[],
@@ -503,7 +587,12 @@ function calcDenominator(
   return value;
 }
 
-function calcNumer(config: AnalyzeConfig, c1: number, c2: number, Tam: number) {
+function calcNumerator(
+  config: AnalyzeConfig,
+  c1: number,
+  c2: number,
+  Tam: number
+) {
   let value = 0;
   if (isValidTV(config.freshFood)) {
     value +=
@@ -562,114 +651,6 @@ function calcNumer(config: AnalyzeConfig, c1: number, c2: number, Tam: number) {
   return value;
 }
 
-const COLUMN_MAPPING: Record<keyof ExportRow, string> = {
-  blockA: "Block A",
-  blockB: "Block B",
-  blockC: "Block C",
-  testPeriodUnfrozen: "Test Period Unfrozen (°C)",
-  testPeriodFrozen: "Test Period Frozen (°C)",
-  testPeriodPower: "Test Period Power (W)",
-  testPeriodABC: "Test Period (h)",
-  ambientTemp: "Ambient Temperature (°C)",
-  spreadUnfrozen: "Spread Unfrozen (K)",
-  spreadFrozen: "Spread Frozen (K)",
-  spreadPower: "Spread Power (%)",
-  slopeUnfrozen: "Slope Unfrozen (K/h)",
-  slopeFrozen: "Slope Frozen (K/h)",
-  slopePower: "Slope Power (%/h)",
-  permittedPowerSpread: "Permitted Power Spread (%)",
-  valid: "IEC Creteria Annex B",
-  testPeriodValid: "Test Period Valid",
-  pss: "PSS",
-  blockATime: "Block A Time",
-  blockBTime: "Block B Time",
-  blockCTime: "Block C Time",
-};
-
-export function transformDataForExcel(
-  data: ExportRow[]
-): Record<string, any>[] {
-  return data.map((row) => {
-    const transformedRow: Record<string, any> = {};
-    for (const key in row) {
-      if (COLUMN_MAPPING[key as keyof ExportRow]) {
-        transformedRow[COLUMN_MAPPING[key as keyof ExportRow]] =
-          row[key as keyof ExportRow];
-      }
-    }
-    return transformedRow;
-  });
-}
-
-export class ExportRow {
-  blockA: string;
-  blockB: string;
-  blockC: string;
-
-  testPeriodUnfrozen: number;
-
-  testPeriodFrozen: number;
-
-  testPeriodPower: number;
-  testPeriodABC: number;
-
-  ambientTemp: number;
-  spreadUnfrozen: number;
-  spreadFrozen: number;
-  spreadPower: number;
-  slopeUnfrozen: number;
-  slopeFrozen: number;
-  slopePower: number;
-
-  permittedPowerSpread: number;
-  valid: boolean;
-  testPeriodValid: boolean;
-  pss: number;
-  
-  blockATime: string = '';
-  blockBTime: string = '';
-  blockCTime: string = '';
-  constructor(
-    blockA: string = "",
-    blockB: string = "",
-    blockC: string = "",
-    testPeriodUnfrozen: number = 0,
-    testPeriodFrozen: number = 0,
-    testPeriodPower: number = 0,
-    testPeriodABC: number = 0,
-    ambientTemp: number = 0,
-    spreadUnfrozen: number = 0,
-    spreadFrozen: number = 0,
-    spreadPower: number = 0,
-    slopeUnfrozen: number = 0,
-    slopeFrozen: number = 0,
-    slopePower: number = 0,
-    permittedPowerSpread: number = 0,
-    valid: boolean = false,
-    testPeriodValid: boolean = false,
-    pss: number = 0
-  ) {
-    this.blockA = blockA;
-    this.blockB = blockB;
-    this.blockC = blockC;
-    this.testPeriodUnfrozen = testPeriodUnfrozen;
-    this.testPeriodFrozen = testPeriodFrozen;
-    this.testPeriodPower = testPeriodPower;
-    this.testPeriodABC = testPeriodABC;
-    this.ambientTemp = ambientTemp;
-    this.spreadUnfrozen = spreadUnfrozen;
-    this.spreadFrozen = spreadFrozen;
-    this.spreadPower = spreadPower;
-    this.slopeUnfrozen = slopeUnfrozen;
-    this.slopeFrozen = slopeFrozen;
-    this.slopePower = slopePower;
-    this.permittedPowerSpread = permittedPowerSpread;
-    this.valid = valid;
-    this.testPeriodValid = testPeriodValid;
-    this.pss = pss;
-  }
-}
-
 function validate(row: ExportRow): boolean {
   if (row.testPeriodABC <= 6) return false;
 
@@ -682,10 +663,4 @@ function validate(row: ExportRow): boolean {
   if (row.slopePower >= 0.025) return false;
 
   return true;
-}
-
-function toArray(row: ExportRow): any[] {
-  return [
-    `${row.blockA}`
-  ]
 }

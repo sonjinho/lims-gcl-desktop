@@ -2,7 +2,7 @@
   import { selectedStore } from "$lib/store/selectedStore";
   import {
     exportSS1ToExcel,
-    exportSS2ToExcelPeriodBlock,
+    exportSS2ToExcel,
   } from "$lib/util/excel.utils";
   import { runSS1_manual } from "$lib/util/iec.62552.3.ss1.util";
   import {
@@ -102,7 +102,7 @@
         numberOfTCC
       );
     } else {
-      exportSS2ToExcelPeriodBlock(rawData, cycleData, periodBlocks);
+      exportSS2ToExcel(rawData, cycleData, periodBlocks);
     }
   }
 

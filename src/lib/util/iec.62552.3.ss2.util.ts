@@ -8,31 +8,151 @@ import {
 } from "../store/selectedStore";
 import { type ExcelData } from "./excel.utils";
 import {
-  detectDefrostRecovery,
-  getEvaluateFrozenIndex,
-  getEvaluateUnfrozenIndex,
-} from "./iec.62552.3.util";
-import { ChartSS2Result } from "./iec.chart.util";
-import getTestPeriodAverage, {
   ConstantTemperature,
   type CycleData,
+  detectDefrostRecovery,
   getConstValue,
+  getEvaluateFrozenIndex,
+  getEvaluateUnfrozenIndex,
+  getTestPeriodAverage,
   type Tdf,
-} from "./iec.util";
-
-export interface SS2 {
+} from "./iec.62552.3.util";
+interface SS2ResultProps {
+  xDuration: number;
+  yDuration: number;
+  xTCC: number;
+  yTCC: number;
+  xyRatio: number;
+  xUnfrozenTemp: number;
+  yUnfrozenTemp: number;
+  xySpreadUnfrozenTemp: number;
+  xFrozenTemp: number;
+  yFrozenTemp: number;
+  xySpreadFrozenTemp: number;
+  xPower: number;
+  yPower: number;
+  xySpreadPowerPercent: number;
+  xySpreadPowerWatt: number;
+  xyEnergy: number;
+  dDuration: number;
+  fDuration: number;
+  dTCC: number;
+  fTCC: number;
+  dfRatio: number;
+  dNominalDuration: number;
+  fNominalDuration: number;
+  dUnfrozenTemp: number;
+  fUnfrozenTemp: number;
+  dfSpreadUnfrozenTemp: number;
+  dFrozenTemp: number;
+  fFrozenTemp: number;
+  dfSpreadFrozenTemp: number;
+  dPower: number;
+  fPower: number;
+  dfSpreadPowerPercent: number;
+  dfSpreadPowerWatt: number;
   Edf: number;
   Thdf: Tdf;
-  TSS2: Tdf;
   PSS2: number;
-  PeriodX: number[];
-  PeriodY: number[];
-  PeriodD: number[];
-  PeriodF: number[];
-  DefrostRecoveryIndex: number;
-  NominalDefrostRecoveryIndex: number;
+  TSS2: Tdf;
+  Tat: number;
+  Tam: number;
+  c1: number;
+  c2: number;
+  deltaCop: number;
+  PSS: number;
 }
+export class SS2Result {
+  xDuration: number;
+  yDuration: number;
+  xTCC: number;
+  yTCC: number;
+  xyRatio: number;
+  xUnfrozenTemp: number;
+  yUnfrozenTemp: number;
+  xySpreadUnfrozenTemp: number;
+  xFrozenTemp: number;
+  yFrozenTemp: number;
+  xySpreadFrozenTemp: number;
+  xPower: number;
+  yPower: number;
+  xySpreadPowerPercent: number;
+  xySpreadPowerWatt: number;
+  xyEnergy: number;
+  dDuration: number;
+  fDuration: number;
+  dTCC: number;
+  fTCC: number;
+  dfRatio: number;
+  dNominalDuration: number;
+  fNominalDuration: number;
+  dUnfrozenTemp: number;
+  fUnfrozenTemp: number;
+  dfSpreadUnfrozenTemp: number;
+  dFrozenTemp: number;
+  fFrozenTemp: number;
+  dfSpreadFrozenTemp: number;
+  dPower: number;
+  fPower: number;
+  dfSpreadPowerPercent: number;
+  dfSpreadPowerWatt: number;
+  Edf: number;
+  Thdf: Tdf;
+  PSS2: number;
+  TSS2: Tdf;
+  Tat: number;
+  Tam: number;
+  c1: number;
+  c2: number;
+  deltaCop: number;
+  PSS: number;
 
+  constructor(props: SS2ResultProps) {
+    this.xDuration = props.xDuration;
+    this.yDuration = props.yDuration;
+    this.xTCC = props.xTCC;
+    this.yTCC = props.yTCC;
+    this.xyRatio = props.xyRatio;
+    this.xUnfrozenTemp = props.xUnfrozenTemp;
+    this.yUnfrozenTemp = props.yUnfrozenTemp;
+    this.xySpreadUnfrozenTemp = props.xySpreadUnfrozenTemp;
+    this.xFrozenTemp = props.xFrozenTemp;
+    this.yFrozenTemp = props.yFrozenTemp;
+    this.xySpreadFrozenTemp = props.xySpreadFrozenTemp;
+    this.xPower = props.xPower;
+    this.yPower = props.yPower;
+    this.xySpreadPowerPercent = props.xySpreadPowerPercent;
+    this.xySpreadPowerWatt = props.xySpreadPowerWatt;
+    this.xyEnergy = props.xyEnergy;
+    this.dDuration = props.dDuration;
+    this.fDuration = props.fDuration;
+    this.dTCC = props.dTCC;
+    this.fTCC = props.fTCC;
+    this.dfRatio = props.dfRatio;
+    this.dNominalDuration = props.dNominalDuration;
+    this.fNominalDuration = props.fNominalDuration;
+    this.dUnfrozenTemp = props.dUnfrozenTemp;
+    this.fUnfrozenTemp = props.fUnfrozenTemp;
+    this.dfSpreadUnfrozenTemp = props.dfSpreadUnfrozenTemp;
+    this.dFrozenTemp = props.dFrozenTemp;
+    this.fFrozenTemp = props.fFrozenTemp;
+    this.dfSpreadFrozenTemp = props.dfSpreadFrozenTemp;
+    this.dPower = props.dPower;
+    this.fPower = props.fPower;
+    this.dfSpreadPowerPercent = props.dfSpreadPowerPercent;
+    this.dfSpreadPowerWatt = props.dfSpreadPowerWatt;
+    this.Edf = props.Edf;
+    this.Thdf = props.Thdf;
+    this.PSS2 = props.PSS2;
+    this.TSS2 = props.TSS2;
+    this.Tat = props.Tat;
+    this.Tam = props.Tam;
+    this.c1 = props.c1;
+    this.c2 = props.c2;
+    this.deltaCop = props.deltaCop;
+    this.PSS = props.PSS;
+  }
+}
 export class Period {
   start: number = 0;
   end: number = 0;
@@ -56,7 +176,7 @@ export function runSS2_manual(
   rawData: ExcelData,
   cycleData: CycleData[],
   periodBlocks: PeriodBlock[]
-): ChartSS2Result | null {
+): SS2Result | null {
   const block: PeriodBlock | undefined = periodBlocks.find(
     (block) => block.checked
   );
@@ -238,8 +358,8 @@ export function runSS2_manual(
   const c1 = constV.c1;
   const c2 = constV.c2;
 
-  const deno = getDenominator(config, Tat, TSS2, c1, c2);
-  const numer = getNumerator(config, TSS2, c1, c2);
+  const deno = calcDenominator(config, Tat, TSS2, c1, c2);
+  const numer = calcNumerator(config, TSS2, c1, c2);
 
   const deltaCop = isTwoComaprtment(config)
     ? constV.deltaCopTwo
@@ -250,7 +370,7 @@ export function runSS2_manual(
     (1 + (Tat - Tam) * (numer / deno)) *
     (1 / (1 + (Tat - Tam) * deltaCop));
 
-  const result = new ChartSS2Result({
+  const result = new SS2Result({
     xDuration,
     yDuration,
     xTCC,
@@ -399,361 +519,7 @@ export function getAutoDefrostRecoveryPeriod(
   return result;
 }
 
-export function runSS2(
-  cycleData: CycleData[],
-  timeData: Date[],
-  rawData: ExcelData,
-  evaluateFrozenIndex: number[],
-  evaluateUnfrozenIndex: number[],
-  config: AnalyzeConfig
-): SS2Result | null {
-  let powerData = rawData.map((row) => row[config.power] as number);
-  let defrostRecoveryCycleIndex = detectDefrostRecovery(powerData, cycleData);
-
-  if (defrostRecoveryCycleIndex.length < 1) {
-    alert("No Defrost Recovery");
-  }
-
-  if (defrostRecoveryCycleIndex.length < 2) {
-    alert("Lower than 2 Defrost Recovery");
-  }
-  for (let i = 0; i < defrostRecoveryCycleIndex.length - 1; i++) {
-    const firstDefrost = defrostRecoveryCycleIndex[i];
-    const secondDefrost = defrostRecoveryCycleIndex[i + 1];
-    // console.log("First Defrost", firstDefrost);
-    // console.log("Second Defrost", secondDefrost);
-    let periodXY = getPeriodXY(
-      firstDefrost,
-      secondDefrost,
-      cycleData,
-      timeData,
-      rawData,
-      evaluateUnfrozenIndex,
-      evaluateFrozenIndex,
-      config
-    );
-
-    if (periodXY.length == 0) {
-      continue;
-    }
-
-    console.log("Period X", periodXY[0]);
-    console.log("Period Y", periodXY[1]);
-
-    let periodDF = getPeriodDF(
-      firstDefrost,
-      secondDefrost,
-      cycleData,
-      timeData,
-      rawData,
-      evaluateUnfrozenIndex,
-      evaluateFrozenIndex,
-      config
-    );
-
-    if (periodXY.length == 0 || periodDF.length == 0) {
-      alert("No matched Period!");
-      continue;
-    }
-
-    let periodXY_numOfTCC = periodXY[2][0];
-    let periodDF_numOfTCC = periodDF[2][0];
-    let nominalIndex = firstDefrost;
-    for (let i = firstDefrost; i < timeData.length; i++) {
-      if (differenceInSeconds(timeData[i], timeData[firstDefrost]) > 2 * 3600) {
-        nominalIndex = i;
-        break;
-      }
-    }
-
-    const Edf = calcEdf(
-      periodDF[0],
-      periodDF[1],
-      cycleData,
-      rawData,
-      timeData,
-      config
-    );
-
-    const Thdf = calcThdf(
-      periodDF[0],
-      periodDF[1],
-      rawData,
-      timeData,
-      evaluateUnfrozenIndex,
-      evaluateFrozenIndex,
-      config
-    );
-
-    const energy = calcEnergyConsumption(
-      periodXY[0][0],
-      periodXY[1][1],
-      rawData,
-      timeData,
-      config
-    );
-
-    const PSS2 =
-      (energy - Edf) /
-      (differenceInSeconds(timeData[periodXY[1][1]], timeData[periodXY[0][0]]) /
-        3600);
-
-    const TSS2: Tdf = calcTSS2(
-      config,
-      rawData,
-      timeData,
-      periodXY[0][0],
-      periodXY[1][1],
-      Thdf
-    );
-
-    const constV = getConstValue(config.targetAmbient);
-
-    const Tat = constV.Tat;
-    const Tam = getTestPeriodAverage(
-      rawData,
-      periodXY[0][0],
-      periodXY[1][1],
-      config.ambient
-    );
-    const c1 = constV.c1;
-    const c2 = constV.c2;
-
-    let deno = getDenominator(config, Tat, TSS2, c1, c2);
-    let numer = getNumerator(config, TSS2, c1, c2);
-
-    const deltaCop = isTwoComaprtment(config)
-      ? constV.deltaCopTwo
-      : constV.deltaCopOne;
-
-    const PSS =
-      PSS2 *
-      (1 + (Tat - Tam) * (numer / deno)) *
-      (1 / (1 + (Tat - Tam) * deltaCop));
-
-    let rtn: SS2 = {
-      Edf: Edf,
-      Thdf: Thdf,
-      TSS2: TSS2,
-      PSS2: PSS,
-      PeriodX: periodXY[0],
-      PeriodY: periodXY[1],
-      PeriodD: periodDF[0],
-      PeriodF: periodDF[1],
-      DefrostRecoveryIndex: firstDefrost,
-      NominalDefrostRecoveryIndex: nominalIndex,
-    };
-
-    console.log(rtn);
-
-    const periodX: PeriodResult = calcPeriodResult(
-      rawData,
-      timeData,
-      periodXY[0][0],
-      periodXY[0][1],
-      config.power,
-      evaluateFrozenIndex,
-      evaluateUnfrozenIndex
-    );
-
-    const periodY: PeriodResult = calcPeriodResult(
-      rawData,
-      timeData,
-      periodXY[1][0],
-      periodXY[1][1],
-      config.power,
-      evaluateFrozenIndex,
-      evaluateUnfrozenIndex
-    );
-
-    const periodXYExcelResult: PeriodExcelResult = {
-      numberOfTCC: periodXY_numOfTCC,
-      ratio: periodX.duration / periodY.duration,
-      power: resultSpreadOfPower(rawData, periodXY[0], config, periodXY[1]),
-      unfrozen: resultSpreadOfTemp(
-        periodXY[0],
-        periodXY[1],
-        rawData,
-        evaluateUnfrozenIndex
-      ),
-      frozen: resultSpreadOfTemp(
-        periodXY[0],
-        periodXY[1],
-        rawData,
-        evaluateFrozenIndex
-      ),
-    };
-
-    const periodD: PeriodResult = calcPeriodResult(
-      rawData,
-      timeData,
-      periodDF[0][0],
-      periodDF[0][1],
-      config.power,
-      evaluateFrozenIndex,
-      evaluateUnfrozenIndex
-    );
-
-    const periodF: PeriodResult = calcPeriodResult(
-      rawData,
-      timeData,
-      periodDF[1][0],
-      periodDF[1][1],
-      config.power,
-      evaluateFrozenIndex,
-      evaluateUnfrozenIndex
-    );
-
-    const periodDFExcelResult: PeriodExcelResult = {
-      numberOfTCC: periodDF_numOfTCC,
-      ratio: periodD.duration / periodF.duration,
-      power: resultSpreadOfPower(rawData, periodDF[0], config, periodDF[1]),
-      unfrozen: resultSpreadOfTemp(
-        periodDF[0],
-        periodDF[1],
-        rawData,
-        evaluateUnfrozenIndex
-      ),
-      frozen: resultSpreadOfTemp(
-        periodDF[0],
-        periodDF[1],
-        rawData,
-        evaluateFrozenIndex
-      ),
-    };
-
-    let result: SS2Result = new SS2Result({
-      periodX: periodX,
-      periodY: periodY,
-      xyResult: periodXYExcelResult,
-      periodD: periodD,
-      periodF: periodF,
-      dfResult: periodDFExcelResult,
-      Edf: Edf,
-      Thdf: Thdf,
-      TSS2: TSS2,
-      PSS: PSS,
-      PSS2: PSS2,
-      config: config,
-      ss2: rtn,
-    });
-
-    // exportSS2ToExcel(result);
-
-    return result;
-  }
-
-  return null;
-}
-
-interface SS2ResultProps {
-  periodX: PeriodResult;
-  periodY: PeriodResult;
-  xyResult: PeriodExcelResult;
-  periodD: PeriodResult;
-  periodF: PeriodResult;
-  dfResult: PeriodExcelResult;
-  Edf: number;
-  Thdf: Tdf;
-  TSS2: Tdf;
-  PSS: number;
-  PSS2: number;
-  config: AnalyzeConfig;
-  ss2: SS2;
-}
-
-interface PeriodResultProps {
-  start: Date;
-  end: Date;
-  power: number;
-  frozenTemp: number;
-  unfrozenTemp: number;
-}
-export class PeriodResult {
-  start: Date;
-  end: Date;
-  duration: number;
-  power: number;
-  frozenTemp: number;
-  unfrozenTemp: number;
-  constructor(props: PeriodResultProps) {
-    this.start = props.start;
-    this.end = props.end;
-    this.duration = differenceInSeconds(props.end, props.start) / 3600;
-    this.power = props.power;
-    this.frozenTemp = props.frozenTemp;
-    this.unfrozenTemp = props.unfrozenTemp;
-  }
-}
-
-export class PeriodExcelResult {
-  public numberOfTCC: number = 0;
-  public ratio: number = 0;
-  public power: string = "";
-  public unfrozen: number = 0;
-  public frozen: number = 0;
-}
-export class SS2Result {
-  periodX: PeriodResult;
-  periodY: PeriodResult;
-  xyResult: PeriodExcelResult;
-  periodD: PeriodResult;
-  periodF: PeriodResult;
-  dfResult: PeriodExcelResult;
-  Edf: number;
-  Thdf: Tdf;
-  TSS2: Tdf;
-  PSS: number;
-  PSS2: number;
-  config: AnalyzeConfig;
-  ss2: SS2;
-
-  constructor(props: SS2ResultProps) {
-    (this.periodX = props.periodX),
-      (this.periodY = props.periodY),
-      (this.periodD = props.periodD),
-      (this.periodF = props.periodF),
-      (this.Edf = props.Edf);
-    this.Thdf = props.Thdf;
-    this.TSS2 = props.TSS2;
-    this.PSS = props.PSS;
-    this.PSS2 = props.PSS2;
-    this.config = props.config;
-    this.xyResult = props.xyResult;
-    this.dfResult = props.dfResult;
-    this.ss2 = props.ss2;
-  }
-}
-
-function calcPeriodResult(
-  rawData: ExcelData,
-  timeData: Date[],
-  startIndex: number,
-  endIndex: number,
-  powerIndex: number,
-  evaluateFrozenIndex: number[],
-  evaluateUnfrozenIndex: number[]
-): PeriodResult {
-  return new PeriodResult({
-    start: timeData[startIndex],
-    end: timeData[endIndex],
-    power: getTestPeriodAverage(rawData, startIndex, endIndex, [powerIndex]),
-    frozenTemp: getTestPeriodAverage(
-      rawData,
-      startIndex,
-      endIndex,
-      evaluateFrozenIndex
-    ),
-    unfrozenTemp: getTestPeriodAverage(
-      rawData,
-      startIndex,
-      endIndex,
-      evaluateUnfrozenIndex
-    ),
-  });
-}
-
-function getNumerator(
+function calcNumerator(
   config: AnalyzeConfig,
   tss2: Tdf,
   c1: number,
@@ -808,7 +574,7 @@ function getNumerator(
   }
   return value;
 }
-function getDenominator(
+function calcDenominator(
   config: AnalyzeConfig,
   Tam: number,
   tss2: Tdf,
@@ -1024,7 +790,6 @@ function getPeriodXY(
 
   return [periodXBlock, periodYBlock, [numberOfTCC]];
 }
-
 function getPeriodDF(
   firstDefrost: number,
   secondDefrost: number,
@@ -1157,7 +922,7 @@ function calcThdf(
   let endTime = timeData[periodFBlock[1]];
 
   const duration = differenceInSeconds(endTime, beginTime) / 3600;
-  let unfrozonT = getTSS2i(
+  let unfrozonT = calcTSS2i(
     rawData,
     periodDBlock,
     periodFBlock,
@@ -1165,7 +930,7 @@ function calcThdf(
     duration
   );
 
-  let frozenT = getTSS2i(
+  let frozenT = calcTSS2i(
     rawData,
     periodDBlock,
     periodFBlock,
@@ -1190,7 +955,7 @@ function calcThdf(
   rtn.evaluateFrozen = frozenT;
   rtn.evaluateUnfrozen = unfrozonT;
   if (isValidTV(config.freshFood)) {
-    rtn.freshFood = getTSS2i(
+    rtn.freshFood = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1199,7 +964,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.cellar)) {
-    rtn.cellar = getTSS2i(
+    rtn.cellar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1208,7 +973,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.pantry)) {
-    rtn.pantry = getTSS2i(
+    rtn.pantry = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1217,7 +982,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.wineStorage)) {
-    rtn.wineStorage = getTSS2i(
+    rtn.wineStorage = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1226,7 +991,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.chill)) {
-    rtn.chill = getTSS2i(
+    rtn.chill = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1235,7 +1000,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.frozenZeroStar)) {
-    rtn.frozenZeroStar = getTSS2i(
+    rtn.frozenZeroStar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1244,7 +1009,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.frozenOneStar)) {
-    rtn.frozenOneStar = getTSS2i(
+    rtn.frozenOneStar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1253,7 +1018,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.frozenTwoStar)) {
-    rtn.frozenTwoStar = getTSS2i(
+    rtn.frozenTwoStar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1262,7 +1027,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.frozenThreeStar)) {
-    rtn.frozenThreeStar = getTSS2i(
+    rtn.frozenThreeStar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1271,7 +1036,7 @@ function calcThdf(
     );
   }
   if (isValidTV(config.frozenFourStar)) {
-    rtn.frozenFourStar = getTSS2i(
+    rtn.frozenFourStar = calcTSS2i(
       rawData,
       periodDBlock,
       periodFBlock,
@@ -1310,31 +1075,6 @@ function validateDuration(
     differenceInSeconds(timeData[yBlock[1]], timeData[yBlock[0]]);
   console.log("Duration: ", ratio);
   return ratio >= 0.8 && ratio <= 1.25;
-}
-
-function resultSpreadOfTemp(
-  xBlockIndex: number[],
-  yBlockIndex: number[],
-  rawData: ExcelData,
-  evaludateIndex: number[]
-) {
-  // Spread Of Temperature
-  let xBlcokTemp = getTestPeriodAverage(
-    rawData,
-    xBlockIndex[0],
-    xBlockIndex[1],
-    evaludateIndex
-  );
-
-  let yBlockTemp = getTestPeriodAverage(
-    rawData,
-    yBlockIndex[0],
-    yBlockIndex[1],
-    evaludateIndex
-  );
-
-  let temp = Math.abs(xBlcokTemp - yBlockTemp);
-  return temp;
 }
 function validateSpreadOfTemperature(
   xBlockIndex: number[],
@@ -1394,26 +1134,6 @@ function validateSpreadOfTemperature(
 
   return true;
 }
-
-function resultSpreadOfPower(
-  rawData: ExcelData,
-  xBlockIndex: number[],
-  config: AnalyzeConfig,
-  yBlockIndex: number[]
-) {
-  let xPower = getTestPeriodAverage(rawData, xBlockIndex[0], xBlockIndex[1], [
-    config.power,
-  ]);
-  let yPower = getTestPeriodAverage(rawData, yBlockIndex[0], yBlockIndex[1], [
-    config.power,
-  ]);
-
-  let spreadOfPower1 = Math.abs(yPower - xPower) / ((xPower + yPower) / 2);
-  let spreadOfPower2 = Math.abs(yPower - xPower);
-
-  return `${spreadOfPower1 * 100}% and ${spreadOfPower2}W`;
-}
-
 function validateSpreadOfPower(
   rawData: ExcelData,
   xBlockIndex: number[],
@@ -1528,8 +1248,7 @@ function findPeriodF(
 
   return [cycleData[periodFStartCycle].index, cycleData[periodFEndCycle].index];
 }
-
-function getTSS2i(
+function calcTSS2i(
   rawData: ExcelData,
   periodDBlock: number[],
   periodFBlock: number[],

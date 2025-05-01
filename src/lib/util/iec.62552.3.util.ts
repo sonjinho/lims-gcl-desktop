@@ -1,9 +1,5 @@
-import { selectedStore, type AnalyzeConfig } from "$lib/store/selectedStore";
-import { get } from "svelte/store";
+import { type AnalyzeConfig } from "$lib/store/selectedStore";
 import { type ExcelData } from "./excel.utils";
-import { runSS1 } from "./iec.62552.3.ss1.util";
-import { runSS2, SS2Result } from "./iec.62552.3.ss2.util";
-import type { CycleData } from "./iec.util";
 
 export enum TemperatureIndex {
   FRESH_FOOD = 0,
@@ -18,53 +14,82 @@ export enum TemperatureIndex {
   FROZEN_4_STAR,
 }
 
-export function IEC62552_3_SS1_Excel(
-  rawData: ExcelData,
-  cycleData: CycleData[],
-  
-) {
-
+export interface Tdf {
+  evaluateFrozen: number;
+  evaluateUnfrozen: number;
+  freshFood: number;
+  cellar: number;
+  pantry: number;
+  wineStorage: number;
+  chill: number;
+  frozenZeroStar: number;
+  frozenOneStar: number;
+  frozenTwoStar: number;
+  frozenThreeStar: number;
+  frozenFourStar: number;
 }
 
-export default function IEC62552_ExportData(
-  excelData: ExcelData,
-  startDate: Date,
-  endDate: Date,
-  numberOfTCC: number
+export interface CycleData {
+  index: number;
+  count: number;
+  dateTime: Date;
+  max: number;
+}
+
+export function getTestPeriodAverage(
+  rawData: ExcelData, 
+  startIndex: number, 
+  endIndex: number,
+  columns: number[]
 ) {
-  const rawData = excelData.slice(2);
+  let sums = new Array(columns.length).fill(0);
 
-  let config = get(selectedStore);
-  console.log(config);
-  const X_AXIS_INDEX = config.xAxis;
-  const POWER_INDEX = config.power;
-
-  let evaluateUnfrozenIndex = getEvaluateUnfrozenIndex(config);
-  let evaluateFrozenIndex = getEvaluateFrozenIndex(config);
-
-  let dateTimeData = [];
-  let powerData = [];
-
-  for (let i = 0; i < rawData.length; i++) {
-    dateTimeData.push(new Date(rawData[i][X_AXIS_INDEX] as string));
-    powerData.push(rawData[i][POWER_INDEX] as number);
+  for (let i = startIndex; i < endIndex; i++) {
+    columns.forEach((col, idx) => {
+      sums[idx] += rawData[i][col];
+    });
   }
 
-  //@ts-ignore
-  let cycleData = detectCycleData(dateTimeData, startDate, endDate, powerData);
-
-  const exportData = runSS1(
-    cycleData,
-    dateTimeData,
-    rawData,
-    evaluateFrozenIndex,
-    evaluateUnfrozenIndex,
-    config,
-    numberOfTCC
+  let totalAvg = sums.reduce(
+    (acc, sum) => acc + sum / (endIndex - startIndex),
+    0
   );
-  // exportToExcel(exportData);
-  return exportData;
+  return totalAvg / columns.length;
 }
+
+export function getConstValue(ambient: number) {
+  if (ambient == 32) {
+    return {
+      Tat: 32,
+      c1: 0.011364,
+      c2: 1.25,
+      deltaCopTwo: -0.014,
+      deltaCopOne: -0.019,
+    };
+  } else {
+    return {
+      Tat: 16,
+      c1: 0.011364,
+      c2: 1.25,
+      deltaCopTwo: 0.0,
+      deltaCopOne: -0.004,
+    };
+  }
+}
+
+export enum ConstantTemperature  {
+  PANTRY = 17,
+  WINE_STORAGE = 12,
+  CELLAR = 12,
+  FRESH_FOOD = 4,
+  CHILL = 2,
+  FROZEN_ZERO_STAR = 0,
+  FROZEN_ONE_STAR = -6,
+  FROZEN_TWO_STAR = -12,
+  FROZEN_THREE_STAR = -18,
+  FROZEN_FOUR_STAR = -18,
+}
+
 
 export function getCycleData(
   rawData: ExcelData,
@@ -131,104 +156,9 @@ function detectCycleData(
           });
         }
       }
-      // let maxIndex = findIndexWindow(powerData, i + 5, 5);
-      // if (set.has(maxIndex)) {
-      //   continue;
-      // } else {
-      //   set.add(maxIndex);
-      //   if (set.has(maxIndex -1) || set.has(maxIndex -2) || set.has(maxIndex -3) || set.has(maxIndex -4) || set.has(maxIndex -5)) {
-      //     set.delete(maxIndex-1);
-      //     set.delete(maxIndex-2);
-      //     set.delete(maxIndex-3);
-      //     set.delete(maxIndex-4);
-      //     set.delete(maxIndex-5);
-      //     cycleData.pop();
-      //   }
-      //   cycleData.push({
-      //     index: maxIndex,
-      //     count: count++,
-      //     dateTime: dateTimeData[maxIndex],
-      //     max: -1,
-      //   });
-      // }
     }
-
   }
   return cycleData;
-}
-
-function findIndexWindow(powerData: number[], index: number, window: number) {
-  let max = powerData[index];
-  let maxIndex = index;
-  for (
-    let i = index - window;
-    i < index + window && i < powerData.length;
-    i++
-  ) {
-    if (max < powerData[i]) {
-      max = powerData[i];
-      maxIndex = i;
-    }
-  }
-
-  if (windowDifference(powerData, maxIndex, window)) {
-    for (let i = maxIndex - 1; i > maxIndex - window; i--) {
-      if (powerData[maxIndex] - powerData[i] > 5) {
-        maxIndex = i + 1;
-        break;
-      }
-    }
-  }
-  return maxIndex;
-}
-
-function windowDifference(powerData: number[], index: number, window: number) {
-  if (powerData[index] - powerData[index - 1] <= 3) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-export function IEC62552_ExportData_SS2(
-  excelData: ExcelData,
-  startDate: Date,
-  endDate: Date,
-  numberOfTCC: number = 3
-): SS2Result | null {
-  // ExcelData
-  const rawData = excelData.slice(2);
-  const config = get(selectedStore) as AnalyzeConfig;
-  const X_AXIS_INDEX = config.xAxis;
-  const POWER_INDEX = config.power;
-
-  let evaluateUnfrozenIndex = getEvaluateUnfrozenIndex(config);
-  let evaluateFrozenIndex = getEvaluateFrozenIndex(config);
-
-  let dateTimeData = [];
-  let powerData: number[] = [];
-
-  for (let i = 0; i < rawData.length; i++) {
-    //@ts-ignore
-    dateTimeData.push(new Date(rawData[i][X_AXIS_INDEX]));
-    powerData.push(rawData[i][POWER_INDEX] as number);
-  }
-
-  const set = new Set();
-
-  //@ts-ignore
-  let cycleData = detectCycleData(dateTimeData, startDate, endDate, powerData);
-
-  // let defrostRecoveryCycleIndex = detectDefrostRecovery(powerData, cycleData);
-
-  return runSS2(
-    cycleData,
-    dateTimeData,
-    rawData,
-    evaluateFrozenIndex,
-    evaluateUnfrozenIndex,
-    config
-  );
 }
 
 export function detectDefrostRecovery(

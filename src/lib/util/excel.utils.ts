@@ -3,57 +3,15 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { get } from "svelte/store";
 import * as XLSX from "xlsx";
-import {
-  ExportRow,
-  runSS1_manual,
-  transformDataForExcel,
-} from "./iec.62552.3.ss1.util";
+import { ExportRow, runSS1_manual } from "./iec.62552.3.ss1.util";
 import {
   runSS2_manual,
+  SS2Result,
   type PeriodBlock,
-  type PeriodExcelResult,
-  type PeriodResult,
-  type SS2Result,
 } from "./iec.62552.3.ss2.util";
-import type { ChartSS2Result } from "./iec.chart.util";
-import type { CycleData, Tdf } from "./iec.util";
+import type { CycleData, Tdf } from "./iec.62552.3.util";
 
 export type ExcelData = (string | number | null | Date)[][]; // Date 타입 추가
-
-//Elapsed Time	Date Time	Room DB	Room RH	Volt	Current	Power	Frequency	Integ. Power	TC_1	TC_2	TC_3	TC_4	TC_5	TC_6	TC_7	TC_8	TC_9	TC_10	TC_11	TC_12	TC_13	TC_14	TC_15	TC_16	TC_17	TC_18	TC_19	TC_20	Power Factor
-// make enum from 0 ~ N
-export enum ExcelColumn {
-  ElapsedTime = 0,
-  DateTime,
-  RoomDB,
-  RoomRH,
-  Volt,
-  Current,
-  Power,
-  Frequency,
-  IntegPower,
-  TC_1,
-  TC_2,
-  TC_3,
-  TC_4,
-  TC_5,
-  TC_6,
-  TC_7,
-  TC_8,
-  TC_9,
-  TC_10,
-  TC_11,
-  TC_12,
-  TC_13,
-  TC_14,
-  TC_15,
-  TC_16,
-  TC_17,
-  TC_18,
-  TC_19,
-  TC_20,
-  PowerFactor,
-}
 
 export async function findExcelFile(): Promise<string | null> {
   const selected = await open({
@@ -69,7 +27,6 @@ export default async function openExcelFile(
   selected: string
 ): Promise<ExcelData | null> {
   try {
-
     console.log(selected);
     let start = new Date();
     const fileData = await readFile(selected);
@@ -127,6 +84,97 @@ export default async function openExcelFile(
   }
 }
 
+export function exportSS2ToExcel(
+  rawData: ExcelData,
+  cycleData: CycleData[],
+  block: PeriodBlock[],
+  fileName: string = "SS2_Export.xlsx"
+) {
+  const result = runSS2_manual(rawData, cycleData, block);
+
+  if (!result) {
+    alert("No Valid Select");
+    return;
+  }
+  if (result == null) {
+    alert("No Valid Select");
+    return;
+  }
+
+  result;
+
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.aoa_to_sheet(workSheet1(result));
+  XLSX.utils.book_append_sheet(wb, ws1, "Result");
+
+  const ws2 = XLSX.utils.aoa_to_sheet(workSheet2(result));
+  XLSX.utils.book_append_sheet(wb, ws2, "PeriodX,Y");
+
+  const ws3 = XLSX.utils.aoa_to_sheet(workSheet3(result));
+  XLSX.utils.book_append_sheet(wb, ws3, "PeriodD,F");
+
+  XLSX.writeFile(wb, fileName);
+}
+
+export function exportSS1ToExcel(
+  rawData: ExcelData,
+  cycleData: CycleData[],
+  timeData: Date[],
+  numberOfTCC: number,
+  fileName: string = "SS1_Export.xlsx"
+) {
+  const exportRows = runSS1_manual(rawData, timeData, cycleData, numberOfTCC);
+  const header = [
+    "Block A",
+    "Block B",
+    "Block C",
+    "Test Period Unfrozen",
+    "Test Period Frozen",
+    "Test Period Power",
+    "Test Period (A-B-C)",
+    "Ambient Temp (A-B-C)",
+    "Spread Unfrozen (A-B-C)",
+    "Spread Frozen (A-B-C)",
+    "Spread Power (A-B-C)",
+    "Slope Unfrozen (A-C)",
+    "Slope Frozen (A-C)",
+    "Slope Power (A-C)",
+    "Permitted Power Spread",
+    "IEC Criteria Annex B",
+    "Test Period Valid",
+    "PSS",
+  ];
+  //Celsius, Celsius, Watt, h, Cellsius, Kelvin
+  const unit = [
+    "TCCs",
+    "TCCs",
+    "TCCs",
+    "°C",
+    "°C",
+    "W",
+    "h",
+    "K",
+    "K",
+    "%",
+    "K/h",
+    "K/h",
+    "%/h",
+    "%",
+    "",
+    "",
+    "",
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    header,
+    unit,
+    ...exportRows.map(converter),
+  ]);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "SS1 Result");
+  XLSX.writeFile(workbook, fileName);
+}
+
 function converter(row: ExportRow): any[] {
   return [
     row.blockA,
@@ -146,86 +194,11 @@ function converter(row: ExportRow): any[] {
     row.permittedPowerSpread,
     row.valid ? "TRUE" : "FALSE",
     row.testPeriodValid ? "VALID" : "INVALID",
-    row.pss
+    row.pss,
   ];
 }
 
-export function exportToExcel(data: ExportRow[], fileName = "export.xlsx") {
-  // const transformedData = transformDataForExcel(data);
-  // const worksheet = XLSX.utils.json_to_sheet(transformedData);
-  const header = [
-    "Block A",
-    "Block B",
-    "Block C",
-    "Test Period Unfrozen",
-    "Test Period Frozen",
-    "Test Period Power",
-    "Test Period (A-B-C)",
-    "Ambient Temp (A-B-C)",
-    "Spread Unfrozen (A-B-C)",
-    "Spread Frozen (A-B-C)",
-    "Spread Power (A-B-C)",
-    "Slope Unfrozen (A-C)",
-    "Slope Frozen (A-C)",
-    "Slope Power (A-C)",
-    "Permitted Power Spread",
-    "IEC Criteria Annex B",
-    "Test Period Valid",
-    "PSS"
-  ]
-  //Celsius, Celsius, Watt, h, Cellsius, Kelvin
-  const unit = [
-    "TCCs",
-    "TCCs",
-    "TCCs",
-    "°C",
-    "°C",
-    "W",
-    "h",
-    "K",
-    "K",
-    "%",
-    "K/h",
-    "K/h",
-    "%/h",
-    "%",
-    "",
-    "",
-    ""
-  ]
-  const worksheet = XLSX.utils.aoa_to_sheet([header, unit, ...data.map(converter)]);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "SS1 Result");
-  XLSX.writeFile(workbook, fileName);
-}
-
-function flattenResultSheet(result: SS2Result): Record<string, any> {
-  const flat: Record<string, any> = {
-    Edf: result.Edf,
-    PSS: result.PSS,
-    PSS2: result.PSS2,
-  };
-
-  for (const key in result.Thdf) {
-    if (result.Thdf[key as keyof Tdf] === -1000) {
-      flat[`Thdf.${key}`] = "None";
-    } else {
-      flat[`Thdf.${key}`] = result.Thdf[key as keyof Tdf];
-    }
-  }
-
-  for (const key in result.TSS2) {
-    if (result.TSS2[key as keyof Tdf] === -1000) {
-      flat[`TSS2.${key}`] = "None";
-    } else {
-      flat[`TSS2.${key}`] = result.TSS2[key as keyof Tdf];
-    }
-  }
-
-  return flat;
-}
-
-function workSheet1(result: ChartSS2Result): any[] {
+function workSheet1(result: SS2Result): any[] {
   return [
     ["PSS", result.PSS],
     ["PSS2", result.PSS2],
@@ -276,7 +249,7 @@ function convertTdfToArray(tdf: Tdf): any[] {
   return result;
 }
 
-function workSheet2(result: ChartSS2Result): any[] {
+function workSheet2(result: SS2Result): any[] {
   let validLength =
     result.xyRatio >= 0.8 &&
     result.xyRatio <= 1.25 &&
@@ -321,7 +294,7 @@ function workSheet2(result: ChartSS2Result): any[] {
   ];
 }
 
-function workSheet3(result: ChartSS2Result): any[] {
+function workSheet3(result: SS2Result): any[] {
   let validLength =
     result.dfRatio >= 0.8 &&
     result.dfRatio <= 1.25 &&
@@ -365,126 +338,4 @@ function workSheet3(result: ChartSS2Result): any[] {
       `(${result.dfSpreadFrozenTemp < 0.5 ? "OK" : "Fail"}) < 0.5 K`,
     ],
   ];
-}
-
-export function exportSS2ToExcelPeriodBlock(
-  rawData: ExcelData,
-  cycleData: CycleData[],
-  block: PeriodBlock[],
-  fileName: string = "SS2_Export.xlsx"
-) {
-  const result = runSS2_manual(rawData, cycleData, block);
-
-  if (!result) {
-    alert("No Valid Select");
-    return;
-  }
-  if (result == null) {
-    alert("No Valid Select");
-    return;
-  }
-
-  result;
-
-  const wb = XLSX.utils.book_new();
-
-  const ws1 = XLSX.utils.aoa_to_sheet(workSheet1(result));
-  XLSX.utils.book_append_sheet(wb, ws1, "Result");
-
-  const ws2 = XLSX.utils.aoa_to_sheet(workSheet2(result));
-  XLSX.utils.book_append_sheet(wb, ws2, "PeriodX,Y");
-
-  const ws3 = XLSX.utils.aoa_to_sheet(workSheet3(result));
-  XLSX.utils.book_append_sheet(wb, ws3, "PeriodD,F");
-
-  XLSX.writeFile(wb, fileName);
-}
-
-export function exportSS1ToExcel(
-  rawData: ExcelData,
-  cycleData: CycleData[],
-  timeData: Date[],
-  numberOfTCC: number,
-  fileName: string = "SS1_Export.xlsx"
-) {
-  const exportRows = runSS1_manual(rawData, timeData, cycleData, numberOfTCC);
-  exportToExcel(exportRows, fileName);
-}
-export function exportSS2ToExcel(
-  result: SS2Result,
-  fileName = "SS2_Export.xlsx"
-) {
-  const sheet1Data = [flattenResultSheet(result)];
-
-  const wb = XLSX.utils.book_new();
-
-  const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
-  XLSX.utils.book_append_sheet(wb, ws1, "Result");
-
-  const ws2 = XLSX.utils.aoa_to_sheet(
-    extractPeriodXY_ver0(result.periodX, result.periodY, result.xyResult)
-  );
-  XLSX.utils.book_append_sheet(wb, ws2, "PeriodX,Y");
-
-  const ws3 = XLSX.utils.json_to_sheet(
-    extractPeriodDF_ver0(result.periodD, result.periodF, result.dfResult)
-  );
-  XLSX.utils.book_append_sheet(wb, ws3, "PeriodD,F");
-
-  XLSX.writeFile(wb, fileName);
-}
-
-function extractPeriodXY_ver0(
-  p1: PeriodResult,
-  p2: PeriodResult,
-  result: PeriodExcelResult
-): any[] {
-  return [
-    ["Parameter", "Period X", "Period Y", "Spread/Criteria", "Notes"],
-    [
-      "Length",
-      p1.duration,
-      p2.duration,
-      `Number of TCC: ${result.numberOfTCC}, ratio: ${result.ratio}`,
-      "0.8 to 1.25, >=4h, >= 4TCC",
-    ],
-    ["Power W", p1.power, p2.power, result.power, " < 2% or < 1W"],
-    [
-      "Fresh Food ℃",
-      p1.unfrozenTemp,
-      p2.unfrozenTemp,
-      result.unfrozen,
-      " < 0.5 K",
-    ],
-    ["Freezer ℃", p1.frozenTemp, p2.frozenTemp, result.frozen, " < 0.5 K"],
-  ];
-}
-
-function extractPeriodDF_ver0(
-  p1: PeriodResult,
-  p2: PeriodResult,
-  result: PeriodExcelResult
-): any[] {
-  return [
-    ["Parameter", "Period D", "Period F", "Spread/Criteria", "Notes"],
-    [
-      "Length",
-      p1.duration,
-      p2.duration,
-      `Number of TCC: ${result.numberOfTCC}, ratio: ${result.ratio}`,
-      "0.8 to 1.25, >=3h, >= 3TCC",
-    ],
-    ["Power W", p1.power, p2.power, result.power, " < 2% or < 1W"],
-    [
-      "Fresh Food ℃",
-      p1.unfrozenTemp,
-      p2.unfrozenTemp,
-      result.unfrozen,
-      " < 0.5 K",
-    ],
-    ["Freezer ℃", p1.frozenTemp, p2.frozenTemp, result.frozen, " < 0.5 K"],
-  ];
-}
-export function exportSS2(result: SS2Result) {
-  const ws2 = XLSX.utils.aoa_to_sheet([]);
 }
