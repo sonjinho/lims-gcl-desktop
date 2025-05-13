@@ -1,4 +1,4 @@
-use tauri_plugin_sql::{Builder, Migration, MigrationKind};
+use tauri_plugin_sql::{Migration, MigrationKind};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -18,6 +18,26 @@ pub fn run() {
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
             );",
         kind: MigrationKind::Up,
+    }, Migration {
+      version: 2,
+      description: "create result table",
+      sql: "CREATE TABLE IF NOT EXISTS lims_result (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fileName TEXT NOT NULL UNIQUE,
+        data TEXT NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );",
+      kind: MigrationKind::Up,
+    }, Migration {
+      version: 3,
+      description: "create storage temperature table",
+      sql: "CREATE TABLE IF NOT EXISTS lims_storage_temperature (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fileName TEXT NOT NULL UNIQUE,
+        data TEXT NOT NULL,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );",
+      kind: MigrationKind::Up,
     }];
     tauri::Builder::default()
         .plugin(

@@ -51,6 +51,7 @@ interface SS2ResultProps {
   fPower: number;
   dfSpreadPowerPercent: number;
   dfSpreadPowerWatt: number;
+  previousDefrostPeriodDDuration?: number;
   Edf: number;
   Thdf: Tdf;
   PSS2: number;
@@ -96,6 +97,7 @@ export class SS2Result {
   fPower: number;
   dfSpreadPowerPercent: number;
   dfSpreadPowerWatt: number;
+  previousDefrostPeriodDDuration?: number;
   Edf: number;
   Thdf: Tdf;
   PSS2: number;
@@ -151,6 +153,7 @@ export class SS2Result {
     this.c2 = props.c2;
     this.deltaCop = props.deltaCop;
     this.PSS = props.PSS;
+    this.previousDefrostPeriodDDuration = props.previousDefrostPeriodDDuration ?? -1;
   }
 }
 export class Period {
@@ -166,6 +169,7 @@ export class PeriodBlock {
   public periodF: Period = { start: 0, end: 0 };
   public periodX: Period = { start: 0, end: 0 };
   public periodY: Period = { start: 0, end: 0 };
+  public heaterOn: number = 0;
   public defrostRecoveryIndex: number = 0;
   public nominalDefrostRecoveryIndex: number = 0;
   public checked: boolean = false;
@@ -181,9 +185,11 @@ export function runSS2_manual(
     (block) => block.checked
   );
   if (!block) {
-    alert("No checke block");
+    alert("No checked block");
     return null;
   }
+
+  
   const config = get(selectedStore);
 
   const timeData = rawData.map((row) => new Date(row[config.xAxis] as string));
@@ -370,6 +376,11 @@ export function runSS2_manual(
     (1 + (Tat - Tam) * (numer / deno)) *
     (1 / (1 + (Tat - Tam) * deltaCop));
 
+  let blockIndex = periodBlocks.findIndex((block) => (block.checked));
+  let previousDuration  =0;
+  if (blockIndex > 0) {
+    previousDuration = differenceInSeconds(timeData[periodBlocks[blockIndex].periodD.start], timeData[periodBlocks[blockIndex - 1].heaterOn]) / 3600;
+  }
   const result = new SS2Result({
     xDuration,
     yDuration,
@@ -414,8 +425,88 @@ export function runSS2_manual(
     c2,
     deltaCop,
     PSS,
+    previousDefrostPeriodDDuration: previousDuration
   });
 
+  return result;
+}
+
+export function getSS1DefrostRecoveryPeriod(
+  rawData: ExcelData,
+  cycleData: CycleData[],
+  config: AnalyzeConfig,
+): PeriodBlock[] {
+  let powerData = rawData.map((row) => row[config.power] as number);
+  let timeData = rawData.map((row) => new Date(row[config.xAxis] as string));
+  let heaterOnIndexes = detectDefrostRecovery(powerData, cycleData);
+  let evaluateUnfrozenIndex = getEvaluateUnfrozenIndex(config);
+  let evaluateFrozenIndex = getEvaluateFrozenIndex(config);
+
+  if (heaterOnIndexes.length < 2) {
+    return [];
+  }
+
+  let result: PeriodBlock[] = [];
+
+  for (let i = 0; i < heaterOnIndexes.length; i++) {
+    const firstDefrost = heaterOnIndexes[i];
+    // const secondDefrost = heaterOnIndexes[i + 1];
+    
+    let periodDF = getPeriodDF(
+      firstDefrost,
+      -1,
+      cycleData,
+      timeData,
+      rawData,
+      evaluateUnfrozenIndex,
+      evaluateFrozenIndex,
+      config
+    );
+
+    if (periodDF.length == 0) {
+      alert("No matched Period!");
+      continue;
+    }
+
+    let nominalIndex = firstDefrost;
+    for (let i = firstDefrost; i < timeData.length; i++) {
+      if (differenceInSeconds(timeData[i], timeData[firstDefrost]) > 2 * 3600) {
+        nominalIndex = i;
+        break;
+      }
+    }
+
+    let periodBlock = new PeriodBlock();
+    periodBlock.heaterOn = firstDefrost;
+    
+    for (let i = 0; i <cycleData.length;i++) {
+      if (cycleData[i].index >firstDefrost) {
+        periodBlock.defrostRecoveryIndex = cycleData[i].index;
+        break;
+      }
+    }
+    periodBlock.periodX = new Period({
+      start: 0,
+      end: 0,
+    });
+    periodBlock.periodY = new Period({
+      start: 0,
+      end: 0,
+    });
+    periodBlock.periodD = new Period({
+      start: periodDF[0][0],
+      end: periodDF[0][1] -1,
+    });
+    periodBlock.periodF = new Period({
+      start: periodDF[1][0],
+      end: periodDF[1][1]-1,
+    });
+    periodBlock.nominalDefrostRecoveryIndex = nominalIndex;
+    periodBlock.lastPeriod = false;
+    result.push(periodBlock);
+  }
+  result[result.length -1].lastPeriod = true;
+  result[result.length -1].checked = true;
   return result;
 }
 
@@ -485,6 +576,19 @@ export function getAutoDefrostRecoveryPeriod(
 
     let periodBlock = new PeriodBlock();
     periodBlock.defrostRecoveryIndex = firstDefrost;
+    
+    let heaterOnIndex =0;
+    for (let i = 0; i <cycleData.length;i++) {
+      if (cycleData[i].index >firstDefrost) {
+        if (i>2) {
+          heaterOnIndex = cycleData[i-2].index;
+        } else {
+          heaterOnIndex = firstDefrost;
+        }
+        periodBlock.heaterOn = heaterOnIndex;
+        break;
+      }
+    }
     periodBlock.periodX = new Period({
       start: periodXY[0][0],
       end: periodXY[0][1],
@@ -846,6 +950,10 @@ function getPeriodDF(
       continue;
     }
 
+    if (secondDefrost == -1) {
+      break;
+    }
+
     if (secondDefrost && periodFBlock[1] > secondDefrost) {
       console.log("Period F should be end before next defrost");
       continue;
@@ -883,30 +991,33 @@ function calcEdf(
   timeData: Date[],
   config: AnalyzeConfig
 ) {
-  let EendfMinusEendX = 0;
-
-  for (let i = periodDBlock[0]; i < periodFBlock[1]; i++) {
-    EendfMinusEendX +=
-      ((rawData[i][config.power] as number) *
-        differenceInSeconds(timeData[i + 1], timeData[i])) /
-      3600;
+  let EendfMinusEendX: number = 0;
+  if (config.integPower) {
+    //@ts-ignore
+    EendfMinusEendX = ((rawData[periodFBlock[1]][config.integPower] as number) -
+    //@ts-ignore
+      rawData[periodDBlock[0]][config.integPower]) as number;
+  } else {
+    for (let i = periodDBlock[0]; i < periodFBlock[1]; i++) {
+      EendfMinusEendX +=
+        ((rawData[i][config.power] as number) *
+          differenceInSeconds(timeData[i + 1], timeData[i])) /
+        3600;
+    }
   }
 
-  let xPower = getTestPeriodAverage(rawData, periodDBlock[0], periodDBlock[1], [
+  const dPower = getTestPeriodAverage(rawData, periodDBlock[0], periodDBlock[1] + 1, [
     config.power,
   ]);
-  let yPower = getTestPeriodAverage(rawData, periodFBlock[0], periodFBlock[1], [
+  const fPower = getTestPeriodAverage(rawData, periodFBlock[0], periodFBlock[1] + 1, [
     config.power,
   ]);
-
+  const dfDuration = differenceInSeconds(timeData[periodFBlock[1]], timeData[periodDBlock[0]]) / 3600;
+  console.log(EendfMinusEendX, fPower, dPower, dfDuration);
   let Edf =
     EendfMinusEendX -
-    ((yPower + xPower) / 2) *
-      (differenceInSeconds(
-        timeData[periodFBlock[1]],
-        timeData[periodDBlock[0]]
-      ) /
-        3600);
+    ((fPower + dPower) / 2) * dfDuration;
+  console.log(Edf);
   return Edf;
 }
 function calcThdf(

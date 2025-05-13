@@ -5,7 +5,7 @@ interface YAxis {
   name: string;
   min: number;
   max: number;
-  positionLeft: boolean;
+  zoom: boolean;
   color: number;
 }
 
@@ -25,7 +25,7 @@ export const chartYAxisStore: Writable<ChartYAxisStore> = writable({
       name: "Temperature",
       min: -30,
       max: 40,
-      positionLeft: true,
+      zoom: true,
       color: 0,
     },
     {
@@ -33,7 +33,7 @@ export const chartYAxisStore: Writable<ChartYAxisStore> = writable({
       name: "Power",
       min: 0,
       max: 600,
-      positionLeft: false,
+      zoom: false,
       color: 1,
     },
   ],

@@ -22,6 +22,17 @@
   function submit() {
     dispatch("event",{});
   }
+
+  function removeYAxis(index) {
+    $chartYAxisStore.yAxis = $chartYAxisStore.yAxis.filter(
+      (axis) => axis.index !== index);
+    $chartYAxisStore.series = $chartYAxisStore.series.map((series) => {
+      if (series.yAxis >= index) {
+        series.yAxis = series.yAxis - 1;
+      }
+      return series;
+    });
+  }
 </script>
 
 <Modal size="xl" title="Edit Chart" bind:open autoclose={false}>
@@ -31,6 +42,7 @@
       <TableHeadCell>Name</TableHeadCell>
       <TableHeadCell>Min</TableHeadCell>
       <TableHeadCell>Max</TableHeadCell>
+      <TableHeadCell>Zoom</TableHeadCell>
       <TableHeadCell>Color</TableHeadCell>
       <TableHeadCell>Action</TableHeadCell>
     </TableHead>
@@ -50,6 +62,9 @@
             <Input type="number" bind:value={yAxis.max} />
           </TableBodyCell>
           <TableBodyCell>
+            <Toggle bind:checked={yAxis.zoom}/>
+          </TableBodyCell>
+          <TableBodyCell>
             <Input type="number" bind:value={yAxis.color} />
           </TableBodyCell>
           <TableBodyCell>
@@ -57,9 +72,7 @@
             <ButtonGroup>
               <Button
                 onclick={() => {
-                  $chartYAxisStore.yAxis = $chartYAxisStore.yAxis.filter(
-                    (axis) => axis.index !== yAxis.index
-                  );
+                  removeYAxis(index);
                 }}><CircleMinusOutline /></Button
               >
             </ButtonGroup>
@@ -79,7 +92,7 @@
             name: "Power",
             min: 0,
             max: 600,
-            positionLeft: false,
+            zoom: false,
             color: 1,
           },
         ];

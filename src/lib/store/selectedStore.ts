@@ -14,6 +14,7 @@ interface AnalyzeConfig {
   evaluateUnfrozen: TemperatureIndex;
   evaluateFrozen: TemperatureIndex;
   xAxis: number;
+  integPower: number;
   power: number;
   ambient: number[];
   freshFood: TempVolume;
@@ -35,6 +36,7 @@ export const selectedStore: Writable<AnalyzeConfig> = writable({
   evaluateFrozen: TemperatureIndex.FROZEN_3_STAR,
   xAxis: 1,
   power: 6,
+  integPower: 7,
   ambient: [],
   freshFood: { temp: [], volume: 0 },
   cellar: { temp: [], volume: 0 },

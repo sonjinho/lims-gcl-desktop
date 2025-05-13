@@ -105,6 +105,10 @@
       <Select bind:value={$selectedStore.power} {items} />
     </div>
     <div>
+      <Label class="block text-sm font-medium text-gray-700">Integ. Power</Label>
+      <Select bind:value={$selectedStore.integPower} {items} />
+    </div>
+    <div>
       <Label class="block text-sm font-medium text-gray-700">Ambient</Label>
       <MultiSelect bind:value={$selectedStore.ambient} {items} />
     </div>

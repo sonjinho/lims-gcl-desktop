@@ -175,7 +175,7 @@ export function exportSS1ToExcel(
   XLSX.writeFile(workbook, fileName);
 }
 
-function converter(row: ExportRow): any[] {
+export function converter(row: ExportRow): any[] {
   return [
     row.blockA,
     row.blockB,
@@ -249,7 +249,7 @@ function convertTdfToArray(tdf: Tdf): any[] {
   return result;
 }
 
-function workSheet2(result: SS2Result): any[] {
+export function workSheet2(result: SS2Result): any[] {
   let validLength =
     result.xyRatio >= 0.8 &&
     result.xyRatio <= 1.25 &&
@@ -294,7 +294,7 @@ function workSheet2(result: SS2Result): any[] {
   ];
 }
 
-function workSheet3(result: SS2Result): any[] {
+export function workSheet3(result: SS2Result): any[] {
   let validLength =
     result.dfRatio >= 0.8 &&
     result.dfRatio <= 1.25 &&

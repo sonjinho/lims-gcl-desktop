@@ -1,12 +1,11 @@
 <script>
   import { chartYAxisStore } from "$lib/store/chartYAxisStore";
   import { Button, ButtonGroup, StepIndicator } from "flowbite-svelte";
-  import DataSetting from "./DataSetting.svelte";
-  import IECChartComponent from "./IECChartComponent.svelte";
-  import ModelView from "./ModelView.svelte";
+  import ModelView from "../ModelView.svelte";
+  import DataSetting from "../DataSetting.svelte";
+  import StorageTemperatureChart from "./StorageTemperatureChart.svelte";
 
   export let result;
-
   function splitByElapsedTime(data) {
     if (!data) return [];
     const result = [];
@@ -63,10 +62,8 @@
   }
 </script>
 
-<main class=" p-6">
-  <!-- <h3 class="text-base font-semibold">{steps[currentStep]}</h3> -->
-  <StepIndicator {currentStep} {steps} />
-  <div class="flex justify-end m-10">
+<main class="p-6">
+  <div class="flex justify-end">
     <ButtonGroup>
       <Button
         disabled={currentStep <= 1}
@@ -92,14 +89,14 @@
       >
     </ButtonGroup>
   </div>
+  <StepIndicator {steps} {currentStep}/>
   {#if currentStep === 1}
-    <ModelView {vendor} />
-  {:else if currentStep == 2}
-    <DataSetting data={chunkData} />
-  {:else if currentStep == 3}
-    {#if chunkData.length > 0}
-      <IECChartComponent data={chunkData} />
-      <!-- <EChartComponent data={chunkData} /> -->
-    {/if}
+      <ModelView {vendor} />
+  {/if}
+  {#if currentStep === 2}
+    <DataSetting data={chunkData}/>
+  {/if}
+  {#if currentStep === 3}
+  <StorageTemperatureChart data={chunkData}/>
   {/if}
 </main>

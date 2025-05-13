@@ -143,14 +143,14 @@ function runSS1(
       evaluateUnfrozenIndex,
       config
     );
-    row.blockA = `TCC ${cycleData[k].count} to ${
-      cycleData[k + numberOfTCC].count - 1
+    row.blockA = `TCC ${cycleData[k].count + 1} to ${
+      cycleData[k + numberOfTCC].count
     }`;
-    row.blockB = `TCC ${cycleData[k + numberOfTCC].count} to ${
-      cycleData[k + numberOfTCC * 2].count - 1
+    row.blockB = `TCC ${cycleData[k + numberOfTCC].count +1} to ${
+      cycleData[k + numberOfTCC * 2].count
     }`;
-    row.blockC = `TCC ${cycleData[k + numberOfTCC * 2].count} to ${
-      cycleData[k + numberOfTCC * 3].count - 1
+    row.blockC = `TCC ${cycleData[k + numberOfTCC * 2].count +1} to ${
+      cycleData[k + numberOfTCC * 3].count
     }`;
 
     row.blockATime = `${timeData[cycleData[k].index]} to ${
@@ -284,32 +284,37 @@ function createExportRow(
     config.power,
   ]);
 
-  row.slopeUnfrozen = calcSlope(
+  // convert to integer
+
+  const slopeDuration =
+    (differenceInSeconds(timeData[blockA[1]], timeData[blockA[0]]) / 2 +
+      differenceInSeconds(timeData[blockC[1]], timeData[blockC[0]]) / 2 +
+      differenceInSeconds(timeData[blockB[1]], timeData[blockB[0]])) /
+    3600;
+  row.slopeUnfrozen = calcSlopeTemp(
     rawData,
     blockA,
     blockC,
     evaluateUnfrozenIndex,
-    row.testPeriodABC
+    slopeDuration
   );
 
-  row.slopeFrozen = calcSlope(
+  row.slopeFrozen = calcSlopeTemp(
     rawData,
     blockA,
     blockC,
     evaluateFrozenIndex,
-    row.testPeriodABC
+    slopeDuration
   );
 
-  // convert to integer
-  const mediumA = Math.trunc((blockA[1] + blockA[0]) / 2);
-  const mediumC = Math.trunc((blockC[1] + blockC[0]) / 2);
-  row.slopePower =
-    Math.abs(
-      getTestPeriodAverage(rawData, blockC[0], blockC[1], [config.power]) -
-        getTestPeriodAverage(rawData, blockA[0], blockA[1], [config.power])
-    ) /
-    ((differenceInSeconds(timeData[mediumC], timeData[mediumA]) / 3600) *
-      getTestPeriodAverage(rawData, blockA[0], blockC[1], [config.power]));
+  row.slopePower = calcSlopePower(
+    rawData,
+    blockC,
+    config,
+    blockA,
+    slopeDuration
+  );
+
   row.permittedPowerSpread = getPermittedPowerSpread(row.testPeriodABC);
 
   row.valid = validate(row);
@@ -386,18 +391,36 @@ function calcSpreadPower(
   );
 }
 
-function calcSlope(
+function calcSlopeTemp(
   rawData: ExcelData,
   blockA: number[],
   blockC: number[],
   indexes: number[],
-  testPeriod: number
+  slopeDuration: number
 ) {
   return (
     Math.abs(
-      getTestPeriodAverage(rawData, blockA[0], blockA[1], indexes) -
-        getTestPeriodAverage(rawData, blockC[0], blockC[1], indexes)
-    ) / testPeriod
+      getTestPeriodAverage(rawData, blockC[0], blockC[1], indexes) -
+        getTestPeriodAverage(rawData, blockA[0], blockA[1], indexes)
+    ) / slopeDuration
+  );
+}
+
+function calcSlopePower(
+  rawData: ExcelData,
+  blockC: number[],
+  config: AnalyzeConfig,
+  blockA: number[],
+  slopeDuration: number
+): number {
+  return (
+    (Math.abs(
+      getTestPeriodAverage(rawData, blockC[0], blockC[1], [config.power]) -
+        getTestPeriodAverage(rawData, blockA[0], blockA[1], [config.power])
+    ) /
+      (slopeDuration *
+        getTestPeriodAverage(rawData, blockA[0], blockC[1], [config.power]))) *
+    100
   );
 }
 
@@ -660,7 +683,7 @@ function validate(row: ExportRow): boolean {
 
   if (row.spreadPower > row.permittedPowerSpread) return false;
 
-  if (row.slopePower >= 0.025) return false;
+  if (row.slopePower >= 0.25) return false;
 
   return true;
 }

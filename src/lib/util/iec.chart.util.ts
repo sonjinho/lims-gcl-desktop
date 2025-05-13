@@ -2,12 +2,12 @@ import { chartYAxisStore } from "$lib/store/chartYAxisStore";
 import { get } from "svelte/store";
 import { isValidTV, selectedStore } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
-import { runSS2_manual, SS2Result, type PeriodBlock } from "./iec.62552.3.ss2.util";
 import {
-  detectDefrostRecovery,
-  type CycleData,
-  type Tdf,
-} from "./iec.62552.3.util";
+  runSS2_manual,
+  SS2Result,
+  type PeriodBlock,
+} from "./iec.62552.3.ss2.util";
+import { type CycleData, type Tdf } from "./iec.62552.3.util";
 
 const COLORS = [
   "rgb(75, 192, 192)",
@@ -57,7 +57,7 @@ const COLORS = [
   "rgb(240, 128, 128)",
 ];
 
-const enum SERIES_NAME {
+export const enum SERIES_NAME {
   TCC = "TCC",
   PERIOD_X = "PERIOD X",
   PERIOD_Y = "PERIOD Y",
@@ -67,7 +67,7 @@ const enum SERIES_NAME {
   PERIOD_XY = "PERIOD XY",
   NOMINAL = "NOMINAL",
 }
-const getColor = (index: number): string => {
+export const getColor = (index: number): string => {
   return COLORS[index % COLORS.length];
 };
 
@@ -88,14 +88,17 @@ export function convertToChartData(
   const units = excelData[1].map(String);
   // complete   this
   const yAxisMap: Record<string, number> = Object.fromEntries(
-    yAxisStore.series.map(({ header, yAxis }) => [header, yAxis])
+    yAxisStore.series.map(({ header, yAxis }) => [
+      header,
+      yAxis % yAxisStore.yAxis.length,
+    ])
   );
 
   const yAxis = yAxisStore.yAxis.map((axis, index) => {
     return {
       type: "value",
       name: axis.name,
-      position: index == 0 ? "left" : "right",
+      position: "left" /* index == 0 ? "left" : "right" */,
       min: axis.min,
       max: axis.max,
       axisLine: {
@@ -104,7 +107,11 @@ export function convertToChartData(
           color: getColor(axis.color),
         },
       },
-      offset: index == 0 ? 0 : 80 * (index - 1),
+      offset: 60 * index,
+      axisLabel: {
+        formatter: (val: any) => `${val}`,
+        rotate: 45,
+      },
     };
   });
 
@@ -113,8 +120,6 @@ export function convertToChartData(
   const xAxisData = rawData.map((row) =>
     new Date(row[config.xAxis] as string).getTime()
   );
-
-  const powerData = rawData.map((row) => Number(row[config.power]) || 0);
 
   const midngihtLines = getMidnightLines(xAxisData);
 
@@ -141,12 +146,19 @@ export function convertToChartData(
   let periodFTooltip = "";
 
   if (periodBlocks.length > 0) {
-    const nonLastBlock = periodBlocks.filter(
-      (periodBlock) => periodBlock.lastPeriod == false && periodBlock.checked
-    );
+    let nonLastBlock = [];
+    if (ssType == 0) {
+      nonLastBlock = periodBlocks.filter(
+        (periodBlock) =>  periodBlock.checked
+      )
+    } else {
+      nonLastBlock = periodBlocks.filter(
+        (periodBlock) => periodBlock.lastPeriod == false && periodBlock.checked
+      );
+    }
 
     let chartSS2Result = runSS2_manual(rawData, cycleData, nonLastBlock);
-    const periodX = drawSinglePeriodData(
+    let periodX = ssType != 0 ? drawSinglePeriodData(
       SERIES_NAME.PERIOD_X,
       xAxisData,
       nonLastBlock
@@ -154,9 +166,9 @@ export function convertToChartData(
         .map((period) => [period.start, period.end])
         .flat(),
       6
-    );
+    ) : null;
 
-    const periodY = drawSinglePeriodData(
+    let periodY = ssType  != 0 ? drawSinglePeriodData(
       SERIES_NAME.PERIOD_Y,
       xAxisData,
       nonLastBlock
@@ -164,7 +176,7 @@ export function convertToChartData(
         .map((period) => [period.start, period.end])
         .flat(),
       6
-    );
+    ) : null;
 
     const periodD = drawSinglePeriodData(
       SERIES_NAME.PERIOD_D,
@@ -194,14 +206,21 @@ export function convertToChartData(
       9
     );
     if (chartSS2Result != null && chartSS2Result) {
-      periodXTooltip = getXYTooltop(chartSS2Result);
-      periodYTooltip = periodXTooltip;
+      if (ssType !=0) {
+        periodXTooltip = getXYTooltop(chartSS2Result);
+        periodYTooltip = periodXTooltip;
+      }
       periodDTooltip = getDFTooltip(chartSS2Result);
       periodFTooltip = getDFTooltip(chartSS2Result);
     }
 
-    //@ts-ignore
-    series = [periodD, periodF, periodX, periodY, nominal, ...series];
+    if (ssType == 0) {
+      //@ts-ignore
+      series = [periodD, periodF, nominal, ...series];
+    } else  {
+      //@ts-ignore
+      series = [periodD, periodF, periodX, periodY, nominal, ...series];
+    }
   }
 
   if (selectedIndex > 0 && selectedIndex < xAxisData.length) {
@@ -226,19 +245,24 @@ export function convertToChartData(
     cycleDataIndex.set(cycle.index, index);
   });
 
-  const cycleKeys = Array.from(cycleDataIndex.keys()).sort((a, b) => a - b);
+  const zoomIndex = yAxisStore.yAxis
+    .filter((axis) => axis.zoom)
+    .map((axis, index) => index);
 
   const option = {
     grid: {
-      left: "10%", // 또는 '5px', 0 등으로 줄일 수 있음
-      right: "10%",
-      top: "10%",
-      bottom: "10%",
+      left: "15%", // 또는 '5px', 0 등으로 줄일 수 있음
+      right: "5%",
+      // top: 0,
+      // bottom: 0,
     },
     tooltip: {
       trigger: "axis",
       axisPointer: {
         type: "cross",
+        label: {
+          margin: 10,
+        },
       },
       formatter: triggerFormat(
         POWER_NAME,
@@ -253,7 +277,15 @@ export function convertToChartData(
       data: legendData.map((s) => s.name),
       selected: Object.fromEntries(legendData.map((d) => [d.name, d.selected])),
       type: "scroll",
+      orient: "horizontal", // 수평 배치
       top: 0,
+      width: "50%", // 컨테이너 너비의 50%로 설정
+      height: 60, // 두 줄에 맞는 높이 설정 (항목 높이와 간격에 따라 조정)
+      align: "auto",
+      itemGap: 10, // 항목 간 간격
+      itemHeight: 14, // 범례 항목의 높이 (기본값 14)
+      pageButtonPosition: "end", // 스크롤 버튼 위치
+      pageButtonGap: 10, // 스크롤 버튼과 항목 간 간격
     },
     toolbox: {
       feature: {
@@ -272,8 +304,20 @@ export function convertToChartData(
     },
     yAxis,
     dataZoom: [
-      { type: "slider", xAxisIndex: 0, start: 0, end: 100 },
-      { type: "inside", xAxisIndex: 0, start: 0, end: 100 },
+      { type: "slider", xAxisIndex: zoomIndex, start: 0, end: 100 },
+      { type: "inside", xAxisIndex: zoomIndex, start: 0, end: 100 },
+      {
+        type: "slider",
+        yAxisIndex: zoomIndex,
+        start: 0,
+        end: 100,
+      },
+      {
+        type: "inside",
+        yAxisIndex: zoomIndex,
+        start: 0,
+        end: 100,
+      },
     ],
     series: chartSeries,
     large: true,
@@ -302,7 +346,7 @@ const getCycleDashedData = (
         symbol: "none",
         label: {
           show: true,
-          formatter: () => `${cycle.count}`,
+          formatter: () => `${cycle.count +1}`,
         },
       };
     });
@@ -567,6 +611,9 @@ const getMidnightLines = (xAxisDate: number[]): number[] => {
 };
 
 export function convertToTimeFormat(date: Date) {
+  if (!date) {
+    return "";
+  }
   const hours = date.getHours() % 12 || 12;
   const ampm = date.getHours() >= 12 ? "PM" : "AM";
   return `${

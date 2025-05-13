@@ -37,8 +37,8 @@ export interface CycleData {
 }
 
 export function getTestPeriodAverage(
-  rawData: ExcelData, 
-  startIndex: number, 
+  rawData: ExcelData,
+  startIndex: number,
   endIndex: number,
   columns: number[]
 ) {
@@ -77,7 +77,7 @@ export function getConstValue(ambient: number) {
   }
 }
 
-export enum ConstantTemperature  {
+export enum ConstantTemperature {
   PANTRY = 17,
   WINE_STORAGE = 12,
   CELLAR = 12,
@@ -89,7 +89,6 @@ export enum ConstantTemperature  {
   FROZEN_THREE_STAR = -18,
   FROZEN_FOUR_STAR = -18,
 }
-
 
 export function getCycleData(
   rawData: ExcelData,
@@ -116,8 +115,15 @@ function detectCycleData(
 ) {
   const set = new Set();
 
-  let cycleData = [];
   let count = 0;
+  let cycleData = [
+    {
+      index: 0,
+      count: count++,
+      dateTime: dateTimeData[0],
+      max: -1,
+    },
+  ];
   let threshold = powerData.reduce((p, c) => p + c, 0) / powerData.length;
 
   for (let i = 0; i < dateTimeData.length - 6; i++) {
@@ -131,20 +137,26 @@ function detectCycleData(
     const nextPower2 = Number(powerData[i + 5]) || 0; // i+2 값
 
     let dynamicThreshold = threshold;
-    if (currentPower < threshold /  2) {
+    if (currentPower < threshold / 2) {
       dynamicThreshold = 5;
     } else if (currentPower >= threshold / 2 && currentPower < threshold) {
-      dynamicThreshold = threshold /2;
+      dynamicThreshold = threshold / 2;
     } else {
       dynamicThreshold = threshold;
     }
 
-    if ((currentPower + dynamicThreshold) < nextPower2) {
+    if (currentPower + dynamicThreshold < nextPower2) {
       let maxIndex = i + 5;
-      if (set.has(maxIndex))  {
+      if (set.has(maxIndex)) {
         continue;
       } else {
-        if (set.has(maxIndex -1) || set.has(maxIndex -2) || set.has(maxIndex -3) || set.has(maxIndex -4) || set.has(maxIndex -5)) {
+        if (
+          set.has(maxIndex - 1) ||
+          set.has(maxIndex - 2) ||
+          set.has(maxIndex - 3) ||
+          set.has(maxIndex - 4) ||
+          set.has(maxIndex - 5)
+        ) {
           continue;
         } else {
           set.add(maxIndex);
@@ -174,7 +186,7 @@ export function detectDefrostRecovery(
     const currentCycle = cycleData[i];
 
     if (
-      (powerData[beforeCycle.index] + threshold) <
+      powerData[beforeCycle.index] + threshold <
       powerData[currentCycle.index]
     ) {
       defrostRecoveryCycleIndex.push(currentCycle.index);
