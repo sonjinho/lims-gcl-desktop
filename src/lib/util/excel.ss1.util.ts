@@ -4,9 +4,9 @@ import { ExportRow, runSS1_manual } from "./iec.62552.3.ss1.util";
 import {
   runSS2_manual,
   SS2Result,
-  type PeriodBlock,
 } from "./iec.62552.3.ss2.util";
-import type { CycleData } from "./iec.62552.3.util";
+import { type PeriodBlock } from '$lib/types/period';
+import type { CycleData } from '$lib/types/period';
 
 export function exportSS1Excel(
   originalData: ExcelData,

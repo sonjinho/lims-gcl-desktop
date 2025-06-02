@@ -10,6 +10,7 @@
   } from "flowbite-svelte";
 
   export let exportRow;
+  export let ss2Result;
 </script>
 
 <Table divClass="h-96 overflow-y-auto mb-40">
@@ -98,3 +99,116 @@
     {/each}
   </TableBody>
 </Table>
+{#if ss2Result}
+  <Table divClass="h-96 overflow-y-auto mb-40">
+    <!-- 
+  Number of TCC in D period	"Number of TCC 
+in F period"	Length of D	Length of F 			Spread Unfrozen Temp 	Spread Frozen Temp 	Spread of Power	Spread of Power	Ratio D & F	Time from D to previous heter on
+
+  -->
+    <TableHead>
+      <TableHeadCell></TableHeadCell>
+      <TableHeadCell>TCC in D</TableHeadCell>
+      <TableHeadCell>TCC in F</TableHeadCell>
+      <TableHeadCell>Length of D</TableHeadCell>
+      <TableHeadCell>Length of F</TableHeadCell>
+      <TableHeadCell>∆t D1</TableHeadCell>
+      <TableHeadCell>∆t F1</TableHeadCell>
+      <TableHeadCell>Spread Unfrozen Temp</TableHeadCell>
+      <TableHeadCell>Spread Frozen Temp</TableHeadCell>
+      <TableHeadCell>Spread of Power</TableHeadCell>
+      <TableHeadCell>Spread of Power</TableHeadCell>
+      <TableHeadCell>Ratio D & F</TableHeadCell>
+      <TableHeadCell>Time from D to previous heater on</TableHeadCell>
+      <TableHeadCell>∆𝐸𝑑𝑓</TableHeadCell>
+      <TableHeadCell>∆𝑇ℎ𝑑𝑟</TableHeadCell>
+      <TableHeadCell>∆𝑇ℎ𝑑𝑓</TableHeadCell>
+    </TableHead>
+    <TableBody>
+      <TableBodyRow>
+        <TableBodyCell>Permitted</TableBodyCell>
+        <!-- 
+        > = 3	> = 3	> = 3	> = 3	> = 3	> = 3	< 0.5	< 0.5	< 1	< 2%	0.8 ~ 1.25	> = 5
+        -->
+
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{">= 3"}</TableBodyCell>
+        <TableBodyCell>{"< 0.5"}</TableBodyCell>
+        <TableBodyCell>{"< 0.5"}</TableBodyCell>
+        <TableBodyCell>{"< 1"}</TableBodyCell>
+        <TableBodyCell>{"< 2%"}</TableBodyCell>
+        <TableBodyCell>{"0.8 ~ 1.25"}</TableBodyCell>
+        <TableBodyCell>{">=5"}</TableBodyCell>
+      </TableBodyRow>
+      <TableBodyRow>
+        <TableBodyCell>Result</TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dTCC.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dTCC}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.fTCC.toFixed(2)}</p>
+          <Tooltip>{ss2Result.fTCC}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dDuration.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dDuration}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.fDuration.toFixed(2)}</p>
+          <Tooltip>{ss2Result.fDuration}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dNominalDuration.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dNominalDuration}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.fNominalDuration.toFixed(2)}</p>
+          <Tooltip>{ss2Result.fNominalDuration}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dfSpreadUnfrozenTemp.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dfSpreadUnfrozenTemp}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dfSpreadFrozenTemp.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dfSpreadFrozenTemp}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dfSpreadPowerWatt.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dfSpreadPowerWatt}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{(ss2Result.dfSpreadPowerPercent * 100).toFixed(2)}</p>
+          <Tooltip>{ss2Result.dfSpreadPowerPercent * 100}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.dfRatio.toFixed(2)}</p>
+          <Tooltip>{ss2Result.dfRatio}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.previousDefrostPeriodDDuration.toFixed(2)}</p>
+          <Tooltip>{ss2Result.previousDefrostPeriodDDuration}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.Edf.toFixed(2)}</p>
+          <Tooltip>{ss2Result.Edf}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.Thdf.evaluateUnfrozen.toFixed(2)}</p>
+          <Tooltip>{ss2Result.Thdf.evaluateUnfrozen}</Tooltip>
+        </TableBodyCell>
+        <TableBodyCell>
+          <p>{ss2Result.Thdf.evaluateFrozen.toFixed(2)}</p>
+          <Tooltip>{ss2Result.Thdf.evaluateFrozen}</Tooltip>
+        </TableBodyCell>
+      </TableBodyRow>
+    </TableBody>
+  </Table>
+{:else}
+  <p>Cannot calculate Period D,F</p>
+{/if}

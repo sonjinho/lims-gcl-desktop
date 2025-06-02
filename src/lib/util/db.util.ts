@@ -1,6 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
-import type { Period, PeriodBlock } from "./iec.62552.3.ss2.util";
-import type { CycleData } from "./iec.62552.3.util";
+import type { PeriodBlock } from '$lib/types/period';
+import type { CycleData, Period } from '$lib/types/period';
 
 let db: Database;
 

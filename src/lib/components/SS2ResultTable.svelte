@@ -53,8 +53,9 @@
     <TableHeadCell>Notes</TableHeadCell>
   </TableHead>
   <TableBody>
+
     {#each xyResult as row, index}
-      {#if index > 1}
+      {#if index > 0}
         <TableBodyRow>
           {#each row as item}
             <TableBodyCell>{item}</TableBodyCell>
@@ -79,7 +80,7 @@
   </TableHead>
   <TableBody>
     {#each dfResult as row, index}
-      {#if index > 1}
+      {#if index > 0}
         <TableBodyRow>
           {#each row as item}
             <TableBodyCell>{item}</TableBodyCell>

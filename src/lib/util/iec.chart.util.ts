@@ -5,9 +5,9 @@ import type { ExcelData } from "./excel.utils";
 import {
   runSS2_manual,
   SS2Result,
-  type PeriodBlock,
 } from "./iec.62552.3.ss2.util";
-import { type CycleData, type Tdf } from "./iec.62552.3.util";
+import { type CycleData, type PeriodBlock } from '$lib/types/period';
+import { type Tdf } from "./iec.62552.3.util";
 
 const COLORS = [
   "rgb(75, 192, 192)",
@@ -73,15 +73,11 @@ export const getColor = (index: number): string => {
 
 export function convertToChartData(
   excelData: ExcelData,
-  startTime: string,
-  endTime: string,
   cycleData: CycleData[],
   periodBlocks: PeriodBlock[],
   ssType: number = 0,
   selectedIndex: number = -1
 ) {
-  const startDate = new Date(startTime);
-  const endDate = new Date(endTime);
   const config = get(selectedStore);
   const yAxisStore = get(chartYAxisStore);
   const headers = excelData[0].map(String);
@@ -121,15 +117,13 @@ export function convertToChartData(
     new Date(row[config.xAxis] as string).getTime()
   );
 
-  const midngihtLines = getMidnightLines(xAxisData);
+  const midnightLines = getMidnightLines(xAxisData);
 
   let series = seriesData(headers, rawData, xAxisData, yAxisMap);
-  const baselineSeries = getBaseLineSeries(midngihtLines);
+  const baselineSeries = getBaseLineSeries(midnightLines);
   const cycleDashedSeries = getCycleDashedData(
     cycleData,
     xAxisData,
-    startDate,
-    endDate
   );
   const defrostDashedSeries = getDefrostRecoveryData(
     periodBlocks.map((block) => block.defrostRecoveryIndex),
@@ -147,15 +141,10 @@ export function convertToChartData(
 
   if (periodBlocks.length > 0) {
     let nonLastBlock = [];
-    if (ssType == 0) {
-      nonLastBlock = periodBlocks.filter(
-        (periodBlock) =>  periodBlock.checked
-      )
-    } else {
-      nonLastBlock = periodBlocks.filter(
-        (periodBlock) => periodBlock.lastPeriod == false && periodBlock.checked
-      );
-    }
+    nonLastBlock = periodBlocks
+      .filter(
+      (periodBlock) => periodBlock.checked
+    );
 
     let chartSS2Result = runSS2_manual(rawData, cycleData, nonLastBlock);
     let periodX = ssType != 0 ? drawSinglePeriodData(
@@ -207,7 +196,7 @@ export function convertToChartData(
     );
     if (chartSS2Result != null && chartSS2Result) {
       if (ssType !=0) {
-        periodXTooltip = getXYTooltop(chartSS2Result);
+        periodXTooltip = getXYTooltip(chartSS2Result);
         periodYTooltip = periodXTooltip;
       }
       periodDTooltip = getDFTooltip(chartSS2Result);
@@ -329,16 +318,8 @@ export function convertToChartData(
 const getCycleDashedData = (
   cycleData: CycleData[],
   xAxisData: number[],
-  startDate: Date,
-  endDate: Date
 ) => {
   let markLineData = cycleData
-    .filter((cycle) => {
-      return (
-        startDate.getTime() <= cycle.dateTime.getTime() &&
-        cycle.dateTime.getTime() <= endDate.getTime()
-      );
-    })
     .map((cycle, index) => {
       return {
         xAxis: xAxisData[cycle.index],
@@ -357,12 +338,6 @@ const getCycleDashedData = (
     silent: true,
     symbol: "none",
     data: cycleData
-      .filter((cycle) => {
-        return (
-          startDate.getTime() <= cycle.dateTime.getTime() &&
-          cycle.dateTime.getTime() <= endDate.getTime()
-        );
-      })
       .map((tcc) => [xAxisData[tcc.index], 0]),
     markLine: {
       silent: true,
@@ -402,7 +377,7 @@ function triggerFormat(
           if (i == 0) {
             break;
           }
-          tooltipStr += `TCC: ${cycleData[i - 1].count}, index: ${
+          tooltipStr += `TCC: ${cycleData[i - 1].count + 1}, index: ${
             cycleData[i - 1].index
           } <br/>`;
           break;
@@ -623,7 +598,7 @@ export function convertToTimeFormat(date: Date) {
   ).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")} ${ampm}`;
 }
 
-function getXYTooltop(result: SS2Result): string {
+function getXYTooltip(result: SS2Result): string {
   let tooltipStr = "";
   tooltipStr += `Duration X: ${result.xDuration}h <br/>`;
   tooltipStr += `Duration Y: ${result.yDuration}h <br/>`;

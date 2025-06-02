@@ -1,15 +1,13 @@
 import { isValidTV, selectedStore } from "$lib/store/selectedStore";
+import type { CycleData } from "$lib/types/period";
+import { PeriodBlock } from "$lib/types/period";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { get } from "svelte/store";
 import * as XLSX from "xlsx";
 import { ExportRow, runSS1_manual } from "./iec.62552.3.ss1.util";
-import {
-  runSS2_manual,
-  SS2Result,
-  type PeriodBlock,
-} from "./iec.62552.3.ss2.util";
-import type { CycleData, Tdf } from "./iec.62552.3.util";
+import { runSS2_manual, SS2Result } from "./iec.62552.3.ss2.util";
+import type { Tdf } from "./iec.62552.3.util";
 
 export type ExcelData = (string | number | null | Date)[][]; // Date 타입 추가
 

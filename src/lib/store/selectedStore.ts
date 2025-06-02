@@ -54,7 +54,7 @@ export function isValidTV(tv: TempVolume) {
   return tv.temp.length > 0 && tv.volume > 0;
 }
 
-export function isTwoComaprtment(config: AnalyzeConfig) {
+export function isTwoCompartment(config: AnalyzeConfig) {
   let count: number = 0;
   if (isValidTV(config.freshFood)) {
     count++;

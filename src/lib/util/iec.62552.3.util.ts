@@ -1,4 +1,5 @@
 import { type AnalyzeConfig } from "$lib/store/selectedStore";
+import type { CycleData } from '$lib/types/period';
 import { type ExcelData } from "./excel.utils";
 
 export enum TemperatureIndex {
@@ -29,11 +30,26 @@ export interface Tdf {
   frozenFourStar: number;
 }
 
-export interface CycleData {
-  index: number;
-  count: number;
-  dateTime: Date;
-  max: number;
+export function getTestPeriodAverageClosed(
+  rawData: ExcelData,
+  startIndex: number,
+  endIndex: number,
+  columns: number[]
+) {
+  endIndex += 1;
+  let sums = new Array(columns.length).fill(0);
+
+  for (let i = startIndex; i < endIndex; i++) {
+    columns.forEach((col, idx) => {
+      sums[idx] += rawData[i][col];
+    });
+  }
+
+  let totalAvg = sums.reduce(
+    (acc, sum) => acc + sum / (endIndex - startIndex),
+    0
+  );
+  return totalAvg / columns.length;
 }
 
 export function getTestPeriodAverage(
@@ -92,8 +108,6 @@ export enum ConstantTemperature {
 
 export function getCycleData(
   rawData: ExcelData,
-  startDate: Date,
-  endDate: Date,
   config: AnalyzeConfig
 ): CycleData[] {
   let dateTimeData = [];
@@ -104,13 +118,11 @@ export function getCycleData(
     dateTimeData.push(new Date(rawData[i][config.xAxis]));
     powerData.push(rawData[i][config.power] as number);
   }
-  return detectCycleData(dateTimeData, startDate, endDate, powerData);
+  return detectCycleData(dateTimeData, powerData);
 }
 
 function detectCycleData(
   dateTimeData: Date[],
-  startDate: Date,
-  endDate: Date,
   powerData: number[]
 ) {
   const set = new Set();
@@ -127,12 +139,6 @@ function detectCycleData(
   let threshold = powerData.reduce((p, c) => p + c, 0) / powerData.length;
 
   for (let i = 0; i < dateTimeData.length - 6; i++) {
-    if (startDate.getTime() > dateTimeData[i].getTime()) {
-      continue;
-    }
-    if (endDate.getTime() < dateTimeData[i].getTime()) {
-      break;
-    }
     const currentPower = Number(powerData[i]) || 0; // 숫자가 아닌 경우 0으로 처리
     const nextPower2 = Number(powerData[i + 5]) || 0; // i+2 값
 

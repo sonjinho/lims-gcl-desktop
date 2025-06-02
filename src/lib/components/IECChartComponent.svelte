@@ -13,14 +13,15 @@
   import {
     getAutoDefrostRecoveryPeriod,
     getSS1DefrostRecoveryPeriod,
-    PeriodBlock,
     runSS2_manual,
   } from "$lib/util/iec.62552.3.ss2.util";
+  import { PeriodBlock } from '$lib/types/period';
   import { getCycleData } from "$lib/util/iec.62552.3.util";
   import {
     convertToChartData,
     convertToTimeFormat,
   } from "$lib/util/iec.chart.util";
+  import { subHours } from "date-fns";
   import * as echarts from "echarts";
   import {
     Button,
@@ -49,10 +50,6 @@
   let isChartLoaded = false;
 
   const config = $selectedStore;
-  const minDate = new Date(data[3][config.xAxis]);
-  const maxDate = new Date(data[data.length - 1][config.xAxis]);
-  const minDateStr = toLocalDatetimeString(minDate);
-  const maxDateStr = toLocalDatetimeString(maxDate);
 
   function toLocalDatetimeString(date) {
     const pad = (n) => n.toString().padStart(2, "0");
@@ -69,14 +66,14 @@
     );
   }
 
+  
   let selectedIndex = 0;
-  // set default 0
-  let mode = 0;
+  // set default 1 manual mode
+  let mode = 1;
   let ssType = 0;
-  let startTime = minDateStr;
-  let endTime = maxDateStr;
   let numberOfTCC = 1;
-  let editTarget = 0;
+  // 0 TCC, 1: Period SS1 2: Period SS2
+  let editTarget = 1;
   let open = false;
   let rawData = [];
   let cycleData = [];
@@ -87,6 +84,8 @@
   let fileName = "";
   let selectedSaveConfig = null;
 
+  let ss2Result = null;
+  let ss1ResultForDF = null;
   let ssItems = [
     {
       value: 0,
@@ -99,10 +98,7 @@
   ];
 
   function exportData() {
-    console.log(ssType, startTime, endTime, numberOfTCC);
     if (ssType == 0) {
-      const startDate = new Date(startTime);
-      const endDate = new Date(endTime);
       exportSS1Excel(data, cycleData, timeData, ss1PeriodBlocks, numberOfTCC);
     } else {
       exportSS2ToExcel(rawData, cycleData, periodBlocks);
@@ -133,8 +129,6 @@
       setTimeout(() => {
         const result = convertToChartData(
           data,
-          startTime,
-          endTime,
           cycleData,
           ssType == 0 ? ss1PeriodBlocks : periodBlocks,
           ssType,
@@ -145,18 +139,15 @@
     });
     console.log("Render Chart");
     chartInstance.setOption(chartOption, true);
-    const startDate = new Date(startTime);
-    const endDate = new Date(endTime);
     exportRow = runSS1_manual(
       rawData,
       timeData,
-      cycleData.filter(
-        (cycle) =>
-          startDate.getTime() <= cycle.dateTime.getTime() &&
-          cycle.dateTime.getTime() <= endDate.getTime()
-      ),
+      cycleData,
       numberOfTCC
     );
+
+    ss1ResultForDF = runSS2_manual(rawData, cycleData, ss1PeriodBlocks);
+    ss2Result = runSS2_manual(rawData, cycleData, periodBlocks);
     isChartLoaded = true;
   }
 
@@ -171,18 +162,13 @@
 
     cycleData = getCycleData(
       rawData,
-      new Date(startTime),
-      new Date(endTime),
       config
     );
 
     timeData = rawData.map((row) => new Date(row[config.xAxis]));
 
-    if (ssType == 0) {
-      ss1PeriodBlocks = getSS1DefrostRecoveryPeriod(rawData, cycleData, config);
-    } else {
-      periodBlocks = getAutoDefrostRecoveryPeriod(rawData, cycleData, config);
-    }
+    ss1PeriodBlocks = getSS1DefrostRecoveryPeriod(rawData, cycleData, config);
+    periodBlocks = getAutoDefrostRecoveryPeriod(rawData, cycleData, config);
     console.log(cycleData);
     if (data && chartContainer) {
       isChartLoaded = false;
@@ -225,16 +211,8 @@
   }
 
   function addSS1PeriodBlock(index) {
-    const newBlock = {
-      periodD: { start: 0, end: 0 },
-      periodF: { start: 0, end: 0 },
-      periodX: { start: 0, end: 0 },
-      periodY: { start: 0, end: 0 },
-      heaterOn: 0,
-      defrostRecoveryIndex: 0,
-      nominalDefrostRecoveryIndex: 0,
-      lastPeriod: false,
-    };
+    const newBlock = JSON.parse(JSON.stringify(ss1PeriodBlocks[index]));
+    newBlock.checked = false;
     ss1PeriodBlocks = [
       ...ss1PeriodBlocks.slice(0, index + 1),
       newBlock,
@@ -243,16 +221,10 @@
   }
 
   function addPeriodBlock(index) {
-    const newBlock = {
-      periodD: { start: 0, end: 0 },
-      periodF: { start: 0, end: 0 },
-      periodX: { start: 0, end: 0 },
-      periodY: { start: 0, end: 0 },
-      heaterOn: 0,
-      defrostRecoveryIndex: 0,
-      nominalDefrostRecoveryIndex: 0,
-      lastPeriod: false,
-    };
+    let targetBlock = periodBlocks[index];
+    let newBlock = JSON.parse(JSON.stringify(targetBlock));
+    newBlock.checked= false;
+    console.log(newBlock);
     periodBlocks = [
       ...periodBlocks.slice(0, index + 1),
       newBlock,
@@ -324,7 +296,7 @@
     const dataConfig = {
       cycleData,
       periodBlocks,
-      ss1PeriodBlocks
+      ss1PeriodBlocks,
     };
 
     await saveLimsResult(name, dataConfig);
@@ -366,31 +338,6 @@
     </Label>
   </div>
   <!-- 시작 시간 -->
-  <div class="flex flex-col">
-    <Label for="start-time" class="text-sm font-semibold">
-      Start Time
-      <Input
-        type="datetime-local"
-        id="start-time"
-        bind:value={startTime}
-        min={minDateStr}
-        max={maxDateStr}
-      />
-    </Label>
-  </div>
-  <!-- 종료 시간 -->
-  <div class="flex flex-col">
-    <Label for="end-time" class="text-sm font-semibold">
-      End Time
-      <Input
-        type="datetime-local"
-        id="end-time"
-        bind:value={endTime}
-        min={minDateStr}
-        max={maxDateStr}
-      />
-    </Label>
-  </div>
   <!-- 숫자 입력 -->
   <div class="flex flex-col">
     <Label for="tcc-count" class="text-sm font-semibold">
@@ -551,7 +498,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodD.start}
                 />
@@ -563,7 +510,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index - 1,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodD.end}
                 />
@@ -578,7 +525,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodF.start}
                 />
@@ -590,7 +537,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index - 1,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodF.end}
                 />
@@ -815,7 +762,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodX.end}
                 />
@@ -830,7 +777,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodY.start}
                 />
@@ -842,7 +789,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodY.end}
                 />
@@ -857,7 +804,7 @@
                 <Select
                   items={cycleData.map((cycle) => ({
                     value: cycle.index,
-                    name: cycle.count,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodD.start}
                 />
@@ -868,8 +815,8 @@
               <TableBodyCell>
                 <Select
                   items={cycleData.map((cycle) => ({
-                    value: cycle.index,
-                    name: cycle.count,
+                    value: cycle.index - 1,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodD.end}
                 />
@@ -883,8 +830,8 @@
               <TableBodyCell>
                 <Select
                   items={cycleData.map((cycle) => ({
-                    value: cycle.index,
-                    name: cycle.count,
+                    value: cycle.index ,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodF.start}
                 />
@@ -895,8 +842,8 @@
               <TableBodyCell>
                 <Select
                   items={cycleData.map((cycle) => ({
-                    value: cycle.index,
-                    name: cycle.count,
+                    value: cycle.index - 1,
+                    name: cycle.count + 1,
                   }))}
                   bind:value={block.periodF.end}
                 />
@@ -1112,16 +1059,16 @@
   {/if}
 {/if}
 {#if exportRow.length > 0 && ssType == 0}
-  <SS1ResultTable {exportRow}></SS1ResultTable>
+  {#key ss1ResultForDF }
+  <SS1ResultTable {exportRow} ss2Result={ss1ResultForDF}></SS1ResultTable>
+  {/key}
 {/if}
 {#if periodBlocks.length > 0 && ssType == 1}
-  {#await runSS2_manual(rawData, cycleData, periodBlocks)}
-    <h2>Loading ...</h2>
-  {:then ss2Result}
-    {#if ss2Result != null}
+  {#if ss2Result != null}
+    {#key ss2Result}
       <SS2ResultTable {ss2Result}></SS2ResultTable>
-    {/if}
-  {/await}
+    {/key}
+  {/if}
 {/if}
 <EditChartModal bind:open on:event={handleModal} />
 <Modal bind:open={openLoadConfigModal} title="Load Config">
@@ -1131,7 +1078,7 @@
   {/snippet}
 </Modal>
 <Modal bind:open={openSaveConfigModal} title="Save Config">
-  <Input type="text" bind:value={fileName} placeholder="New Config Name"/>
+  <Input type="text" bind:value={fileName} placeholder="New Config Name" />
   <Select items={configItems} bind:value={selectedSaveConfig}></Select>
   {#snippet footer()}
     <Button onclick={saveConfig}>Save</Button>

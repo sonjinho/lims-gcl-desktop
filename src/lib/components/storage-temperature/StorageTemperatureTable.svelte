@@ -5,8 +5,8 @@
     type AnalyzeConfig,
   } from "$lib/store/selectedStore";
   import { storageTempConfigStore } from "$lib/store/storageTempConfigStore";
+  import type { Period } from '$lib/types/period';
 
-  import type { Period } from "$lib/util/iec.62552.3.ss2.util";
   import { differenceInSeconds } from "date-fns";
   import {
     Table,

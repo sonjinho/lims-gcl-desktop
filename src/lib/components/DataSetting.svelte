@@ -24,6 +24,7 @@
     ss1Config.config = JSON.stringify($selectedStore);
     console.log(ss1Config);
     save(ss1Config);
+    alert('Save')
   }
   const unfrozenItems = [
     {

@@ -2,20 +2,20 @@ import { differenceInSeconds } from "date-fns";
 import { get } from "svelte/store";
 import {
   type AnalyzeConfig,
-  isTwoComaprtment,
+  isTwoCompartment,
   isValidTV,
   selectedStore,
 } from "../store/selectedStore";
 import type { ExcelData } from "./excel.utils";
 import {
   ConstantTemperature,
-  type CycleData,
   getConstValue,
   getEvaluateFrozenIndex,
   getEvaluateUnfrozenIndex,
   getTestPeriodAverage,
   type Tdf,
 } from "./iec.62552.3.util";
+import type { CycleData } from '$lib/types/period';
 
 export function runSS1_manual(
   rawData: ExcelData,
@@ -208,7 +208,7 @@ function runSS1(
 
     const deno = calcDenominator(config, c1, c2, Tam, Tdf);
     const numer = calcNumerator(config, c1, c2, Tam);
-    const deltaCop = isTwoComaprtment(config)
+    const deltaCop = isTwoCompartment(config)
       ? constV.deltaCopTwo
       : constV.deltaCopOne;
 
